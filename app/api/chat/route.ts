@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit } from '@/lib/rateLimiter';
 import { getSmartAssistantAnswer } from '@/lib/chatKnowledge';
+import { sendWhatsAppMessage } from '@/lib/whatsappSend';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -24,7 +25,7 @@ Guidelines:
 2. Match the user's language: If they ask in Hindi or Hinglish, reply in natural, friendly Hinglish. If in English, reply in crisp English.
 3. Keep responses concise (usually 2 to 4 sentences or bullet points, max 100 words) so it feels like a fast live chat.
 4. When asked about pricing, mention packages start around ₹15,000/month and invite them to connect on WhatsApp (+91 95193 42440) for a free 15-minute audit.
-5. Always guide interested business owners toward booking a free audit or messaging on WhatsApp.`;
+5. Autonomous Onboarding: If the user provides their business name, category, or WhatsApp number, warmly acknowledge it, confirm that their onboarding request is logged, and invite them for a quick confirmation call.`;
 
 const AGENT_PROMPTS: Record<string, string> = {
   'restaurant-smart-dine': `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
@@ -47,7 +48,158 @@ const AGENT_PROMPTS: Record<string, string> = {
   'omni-support-bot': `You are OmniDesk AI Support Agent by MSR Next Gen. You provide instant tier-1 customer support, order tracking, and FAQ resolution. Reply in friendly Hinglish.`,
 };
 
-// 1. Keyless Free LLM (Pollinations AI - OpenAI GPT-4o-mini engine)
+// 1. OpenRouter Provider (auto model routing)
+async function callOpenRouter(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://msrnextgen.com',
+        'X-Title': 'MSR Next Gen AI',
+      },
+      body: JSON.stringify({
+        model: 'openrouter/auto',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.slice(-6),
+        ],
+        temperature: 0.35,
+        max_tokens: 300,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content;
+    if (reply && reply.trim().length > 5) return reply.trim();
+  } catch {
+    // fallback
+  }
+  return null;
+}
+
+// 2. NVIDIA NIM Provider (if key provided)
+async function callNvidiaNim(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+
+    const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'meta/llama-3.1-70b-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.slice(-6),
+        ],
+        temperature: 0.35,
+        max_tokens: 300,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content;
+    if (reply && reply.trim().length > 5) return reply.trim();
+  } catch {
+    // fallback
+  }
+  return null;
+}
+
+// 3. Groq Provider
+async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
+  const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+  for (const model of models) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.slice(-6),
+          ],
+          temperature: 0.35,
+          max_tokens: 300,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content;
+      if (reply && reply.trim().length > 5 && (reply.match(/\uFFFD/g) || []).length <= 2) {
+        return reply.trim();
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+// 4. Gemini Provider (if valid key provided)
+async function callGeminiChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-flash-latest'];
+  for (const model of models) {
+    try {
+      const contents = messages.slice(-6).map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: `${systemPrompt}\nEnsure responses are complete and in Hinglish.` }],
+            },
+            contents,
+            generationConfig: {
+              temperature: 0.35,
+              maxOutputTokens: 350,
+            },
+          }),
+        }
+      );
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (reply && reply.trim().length > 5) return reply.trim();
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+// 5. Keyless Free LLM (Pollinations AI - GPT-4o Engine)
 async function callPollinationsAI(messages: ChatMessage[], systemPrompt: string): Promise<string | null> {
   try {
     const lastMsg = messages[messages.length - 1]?.content || '';
@@ -84,83 +236,35 @@ async function callPollinationsAI(messages: ChatMessage[], systemPrompt: string)
   return null;
 }
 
-// 2. Groq Fallback (if key is configured)
-async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
-  const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
-  for (const model of models) {
-    try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages.slice(-6),
-          ],
-          temperature: 0.4,
-          max_tokens: 800,
-        }),
-      });
+// Autonomous Lead & Onboarding Extraction
+async function detectAndTriggerOnboarding(text: string, clientIp: string) {
+  try {
+    const phoneMatch = text.match(/(?:\+91|91|0)?([6-9]\d{9})/);
+    if (!phoneMatch) return;
 
-      if (!res.ok) continue;
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content;
-      if (reply) return reply.trim();
-    } catch {
-      // try next
-    }
+    const phone = phoneMatch[1];
+    const alertMessage = `🚀 *AUTONOMOUS ONBOARDING LEAD VIA AI CHAT!*
+━━━━━━━━━━━━━━━━━━━━
+📱 *Phone*: +91${phone}
+💬 *Message*: "${text.substring(0, 150)}"
+🌐 *IP*: ${clientIp}
+📅 *Time*: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+━━━━━━━━━━━━━━━━━━━━
+_Auto-captured by MSR Next Gen AI_`;
+
+    await sendWhatsAppMessage('918887521156', alertMessage);
+    await sendWhatsAppMessage('919519342440', alertMessage);
+    console.log(`[Autonomous Onboarding Triggered for +91${phone}]`);
+  } catch (err) {
+    console.error('[Onboarding Trigger Error]:', err);
   }
-  return null;
-}
-
-// 3. Gemini Fallback (if key is configured)
-async function callGeminiChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
-  for (const model of models) {
-    try {
-      const contents = messages.slice(-6).map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      }));
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: `${systemPrompt}\nEnsure responses are complete.` }],
-            },
-            contents,
-            generationConfig: {
-              temperature: 0.4,
-              maxOutputTokens: 800,
-            },
-          }),
-        }
-      );
-
-      if (!res.ok) continue;
-      const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (reply) return reply.trim();
-    } catch {
-      // try next
-    }
-  }
-  return null;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const forwardedFor = req.headers.get('x-forwarded-for');
     const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : '127.0.0.1';
-    const rateLimit = checkRateLimit(`chat_${clientIp}`, 40, 60 * 1000);
+    const rateLimit = checkRateLimit(`chat_${clientIp}`, 50, 60 * 1000);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -186,13 +290,16 @@ export async function POST(req: NextRequest) {
     const systemPrompt = AGENT_PROMPTS[effectiveAgentId] || MAYA_SYSTEM_PROMPT;
 
     const lastUserMsg = messages[messages.length - 1]?.content || '';
+
+    // Autonomous Onboarding Detection
+    detectAndTriggerOnboarding(lastUserMsg, clientIp);
+
     const knowledgeAnswer = getSmartAssistantAnswer(lastUserMsg, messages.length, effectiveAgentId);
 
     let aiReply: string | null = null;
     let provider = 'rules';
 
-    // 1. High-priority instant knowledge check
-    // If it's a specific question (pricing, audit, booking, features, domain queries)
+    // 1. High-priority instant domain knowledge check
     if (
       knowledgeAnswer &&
       !knowledgeAnswer.startsWith('Namaste! MSR Next Gen me aapka swagat hai')
@@ -201,7 +308,49 @@ export async function POST(req: NextRequest) {
       provider = effectiveAgentId ? `${effectiveAgentId}_agent_brain` : 'msr_knowledge_base';
     }
 
-    // 2. Real Cloud LLM (Pollinations AI - GPT-4o Keyless Engine)
+    // 2. OpenRouter AI (Primary High-Intelligence Cloud Router)
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+    if (!aiReply && openrouterKey) {
+      const orReply = await callOpenRouter(messages, systemPrompt, openrouterKey);
+      if (orReply) {
+        aiReply = orReply;
+        provider = 'openrouter_auto';
+      }
+    }
+
+    // 3. Groq Cloud Engine
+    const groqKey = process.env.GROQ_API_KEY;
+
+    if (!aiReply && groqKey) {
+      const groqReply = await callGroqChat(messages, systemPrompt, groqKey);
+      if (groqReply) {
+        aiReply = groqReply;
+        provider = 'groq';
+      }
+    }
+
+    // 4. NVIDIA NIM (if key configured)
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
+    if (!aiReply && nvidiaKey) {
+      const nvReply = await callNvidiaNim(messages, systemPrompt, nvidiaKey);
+      if (nvReply) {
+        aiReply = nvReply;
+        provider = 'nvidia_nim';
+      }
+    }
+
+    // 5. Gemini Flash (if valid key configured)
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!aiReply && geminiKey && geminiKey.startsWith('AIzaSy')) {
+      const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
+      if (geminiReply) {
+        aiReply = geminiReply;
+        provider = 'gemini';
+      }
+    }
+
+    // 6. Pollinations AI Keyless GPT-4o-mini
     if (!aiReply) {
       const pollinationsReply = await callPollinationsAI(messages, systemPrompt);
       if (pollinationsReply) {
@@ -210,27 +359,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Optional Groq / Gemini (if keys available in environment)
-    const groqKey = process.env.GROQ_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
-
-    if (!aiReply && groqKey) {
-      const groqReply = await callGroqChat(messages, systemPrompt, groqKey);
-      if (groqReply && (groqReply.match(/\uFFFD/g) || []).length <= 2) {
-        aiReply = groqReply;
-        provider = 'groq';
-      }
-    }
-
-    if (!aiReply && geminiKey) {
-      const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
-      if (geminiReply && (geminiReply.match(/\uFFFD/g) || []).length <= 2) {
-        aiReply = geminiReply;
-        provider = 'gemini';
-      }
-    }
-
-    // 4. Reliable smart assistant heuristic fallback
+    // 7. Heuristic Contextual Fallback
     if (!aiReply) {
       aiReply = knowledgeAnswer;
       provider = 'msr_ai_fallback';

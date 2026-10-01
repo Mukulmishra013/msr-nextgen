@@ -40,7 +40,7 @@ const SANDBOX_AUTH_DIR = path.resolve(__dirname, '../.whatsapp_auth_sandbox');
 if (!fs.existsSync(ADMIN_AUTH_DIR)) fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });
 if (!fs.existsSync(SANDBOX_AUTH_DIR)) fs.mkdirSync(SANDBOX_AUTH_DIR, { recursive: true });
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 const logger = pino({ level: 'silent' });
 
 function getEnvConfig() {

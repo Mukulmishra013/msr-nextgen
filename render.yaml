@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: msr-whatsapp-bot
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node scripts/whatsapp-service.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_SECRET_KEY
+        value: msr_admin_2026_growth
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_WHATSAPP_SALES_NUMBER
+        value: "919519342440"
+      - key: NEXT_PUBLIC_CUSTOMER_CARE_NUMBER
+        value: "918887521156"
