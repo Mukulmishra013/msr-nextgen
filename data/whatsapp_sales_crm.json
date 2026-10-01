@@ -1,0 +1,39 @@
+{
+  "919876543210": {
+    "phone": "919876543210",
+    "name": "",
+    "businessName": "",
+    "category": "D2C & E-Commerce",
+    "budget": "50,000",
+    "painPoint": "High CPL / Cost Per Lead in current ads",
+    "websiteUrl": "glowbotanics",
+    "auditFindings": "🔍 *Instagram Profile Quick Audit (@glowbotanics)*:\n1. Bio me direct WhatsApp Click-to-Chat CTA missing hai — profile visitors order ya book karne ke bajaye drop ho rahe hain.\n2. Reels me visual problem/solution hook aur regional voiceover add karne se organic reach 2x-3x ho sakti hai (jaise humne Amparo aur Nacho G ke liye kiya).",
+    "stage": "hot_ready_to_close",
+    "psychologyNotes": "New inbound lead. Needs discovery.",
+    "history": [
+      {
+        "sender": "customer",
+        "text": "Hi, I saw your ads. I run a skincare brand @glowbotanics on Instagram. Our ad CPL is very high.",
+        "timestamp": 1790864312709
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.",
+        "timestamp": 1790864312712
+      },
+      {
+        "sender": "customer",
+        "text": "Our monthly spend is around 50,000 rs. Can we schedule a meeting or call today?",
+        "timestamp": 1790864312714
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.",
+        "timestamp": 1790864312715
+      }
+    ],
+    "lastActive": 1790864312715,
+    "alertSentToOwner": true,
+    "notes": ""
+  }
+}

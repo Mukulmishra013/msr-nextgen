@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Rohan Sharma",
+    "businessName": "Sharma Sweets & Snacks",
+    "phone": "+919519342440",
+    "source": "landing-page-form",
+    "submittedAt": "2026-10-01T11:20:04.854Z",
+    "aiScore": "hot",
+    "aiSummary": "Sweet shop owner looking to boost footfall and online orders",
+    "aiSuggestedReply": "Hi Rohan ji, thanks for reaching out! I’m thrilled to connect with you and learn more about Sharma Sweets & Snacks. At MSR Next Gen we specialize in helping sweet shops like yours attract more footfall and boost online orders through targeted ads and AI‑powered ordering bots. Would you be open to a quick 15‑minute strategy audit call? I’ll share some actionable ideas tailored for your business. Let me know a convenient time, and I’ll set it up. Looking forward!",
+    "autoSent": true,
+    "providerUsed": "groq",
+    "id": "lead_1790853604856_43kd5x",
+    "status": "new",
+    "createdAt": "2026-10-01T11:20:04.856Z",
+    "ipAddress": "::1",
+    "userAgent": "node"
+  }
+]
