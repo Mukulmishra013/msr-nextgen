@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Sparkles, X, Send, MessageCircle, Loader2, ChevronDown } from 'lucide-react';
 import { getWhatsAppUrl } from '@/lib/config';
 import { trackEvent } from '@/lib/analytics';
+import { getSmartAssistantAnswer } from '@/lib/chatKnowledge';
 
 interface ChatMessage {
   id: string;
@@ -76,35 +77,30 @@ export default function AIChatWidget() {
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `ai_${Date.now()}`,
-            role: 'assistant',
-            content: data.reply,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `ai_err_${Date.now()}`,
-            role: 'assistant',
-            content:
-              'Aapka question receive hua! Hamare growth experts se direct WhatsApp par baat karne ke liye niche button dabayein.',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]);
+      let replyText = data?.reply;
+
+      // If backend returned generic greeting for a specific user query, replace with contextual intelligence
+      if (!replyText || (replyText.includes('Namaste! MSR Next Gen me aapka swagat hai') && query.length > 5)) {
+        replyText = getSmartAssistantAnswer(query, history.length);
       }
-    } catch {
+
       setMessages((prev) => [
         ...prev,
         {
-          id: `ai_net_err_${Date.now()}`,
+          id: `ai_${Date.now()}`,
           role: 'assistant',
-          content: 'Network connection slow hai. Aap direct WhatsApp par message bhej sakte hain: +91 95193 42440',
+          content: replyText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch {
+      const fallbackReply = getSmartAssistantAnswer(query, messages.length);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai_local_${Date.now()}`,
+          role: 'assistant',
+          content: fallbackReply,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
