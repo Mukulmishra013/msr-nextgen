@@ -56,12 +56,12 @@ export function getOrCreateCustomerRecord(phone, pushName = '') {
       phone: cleanPhone,
       name: pushName || '',
       businessName: '',
-      category: 'Unclassified', // 'D2C' | 'Restaurant' | 'Clinic' | 'RealEstate' | 'Education' | 'Retail' | 'Services'
+      category: 'Unclassified',
       budget: '',
       painPoint: '',
       websiteUrl: '',
       auditFindings: '',
-      stage: 'discovery', // 'discovery' | 'qualifying' | 'audited' | 'pitching' | 'hot_ready_to_close' | 'converted'
+      stage: 'discovery',
       psychologyNotes: 'New inbound lead. Needs discovery.',
       history: [],
       lastActive: Date.now(),
@@ -97,7 +97,6 @@ export function updateLeadRecord(phone, updates) {
 
 // =============================================================================
 // AGENT 1: LINK & PROFILE AUDITOR
-// Inspects URLs or Instagram handles to find live conversion leaks
 // =============================================================================
 export function extractUrlOrHandle(text) {
   const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|in|shop|store|co|io|org|net)[^\s]*)/i;
@@ -128,7 +127,6 @@ export function performInstantAudit(linkInfo, category = 'General') {
 
 // =============================================================================
 // AGENT 2: SALES PSYCHOLOGIST & INTENT ANALYZER
-// Determines category, budget, pain points, and current funnel stage
 // =============================================================================
 export function analyzeCustomerIntent(customer, incomingText) {
   const text = incomingText.toLowerCase();
@@ -173,12 +171,11 @@ export function analyzeCustomerIntent(customer, incomingText) {
 
   // Detect Buying Signals & Advance Funnel Stage
   const isHotSignal =
-    text.includes('price kya hai') ||
+    text.includes('price') ||
     text.includes('charges') ||
     text.includes('package') ||
     text.includes('start kaise') ||
     text.includes('call schedule') ||
-    text.includes('kitna time') ||
     text.includes('meeting') ||
     text.includes('call me') ||
     text.includes('baat karni');
@@ -194,106 +191,154 @@ export function analyzeCustomerIntent(customer, incomingText) {
 }
 
 // =============================================================================
+// KEYLESS CLOUD LLM (POLLINATIONS AI GPT-4o-MINI ENGINE)
+// =============================================================================
+async function callPollinationsAI(systemPrompt, incomingText, recentHistory) {
+  try {
+    const promptToSend = encodeURIComponent(
+      `Conversation History:\n${recentHistory}\n\nClient's Message: "${incomingText}"\n\nReply as Mukul Mishra (MSR Next Gen) in warm, natural Hinglish (2-3 sentences max, consultative, human-like):`
+    );
+    const encodedSystem = encodeURIComponent(systemPrompt);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+
+    const url = `https://text.pollinations.ai/${promptToSend}?system=${encodedSystem}&model=openai`;
+    const res = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 10 && !text.trim().startsWith('{')) {
+        return text.trim().replace(/^"|"$/g, '');
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return null;
+}
+
+// =============================================================================
 // AGENT 3: CONSULTATIVE SALES CLOSER (OPEN-ENDED HUMAN-LIKE HINGLISH)
 // =============================================================================
 export async function generateConsultativeSalesReply(customer, incomingText) {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
+  const q = incomingText.toLowerCase().trim();
+  const historyLen = customer.history.length;
 
-  // Build conversational transcript history (Last 8 messages for memory context)
+  // 1. SPECIFIC DOMAIN INTENTS (Immediate high-priority consultative answers)
+
+  // A. Pricing / Packages / Charges / Cost
+  if (
+    q.includes('price') ||
+    q.includes('pricing') ||
+    q.includes('charge') ||
+    q.includes('cost') ||
+    q.includes('kharcha') ||
+    q.includes('package') ||
+    q.includes('kitna') ||
+    q.includes('fees') ||
+    q.includes('rate')
+  ) {
+    return `Hamare Meta/Google Ads aur 24/7 AI WhatsApp bot management packages ₹15,000/month se start hote hain.\n\nIsme included hai:\n✓ High-converting ad creatives & video reel scripting\n✓ Laser-targeted local audience & daily ROAS optimization\n✓ 24/7 AI WhatsApp bot automation (instant reply & booking)\n\nAapka monthly ads budget lagbhag kitna rehta hai ya kis business ke liye run karna chahte hain?`;
+  }
+
+  // B. Meta & Google Ads / Advertising / Campaigns
+  if (
+    q.includes('meta') ||
+    q.includes('google') ||
+    q.includes('ads') ||
+    q.includes('ad ') ||
+    q.includes('campaign') ||
+    q.includes('marketing') ||
+    q.includes('kaise help')
+  ) {
+    return `Meta & Google Ads se aapke business ko daily verified customers milte hain:\n1. 🎯 Hyper-Local Targeting: Aapke store ya city ke serious buyers tak direct video ads pahunchte hain.\n2. 📲 Direct WhatsApp Funnel: Har ad click seedhe aapke WhatsApp par aati hai jahan bot 2 second me lead qualify karta hai.\n\nAap abhi khud ads run kar rahe hain ya fresh start karna chahte hain?`;
+  }
+
+  // C. WhatsApp Bot / Automation / Features
+  if (
+    q.includes('whatsapp') ||
+    q.includes('bot') ||
+    q.includes('agent') ||
+    q.includes('automation') ||
+    q.includes('kaam karta hai') ||
+    q.includes('feature')
+  ) {
+    return `Hamara 24/7 AI WhatsApp Bot aapke business number par live hokar:\n• ⚡ Raat ke 2 baje bhi 2 second me instant customer answers deta hai\n• 📦 Catalogs, pricing aur payment links automatically share karta hai\n• 🛡️ Fake orders filter karke bookings/orders lock karta hai\n\nAapke business me roz lagbhag kitni customer inquiries aati hain?`;
+  }
+
+  // D. Free 15-Minute Audit / Consultation / Call
+  if (
+    q.includes('audit') ||
+    q.includes('free audit') ||
+    q.includes('call') ||
+    q.includes('meeting') ||
+    q.includes('baat karni')
+  ) {
+    return `Free 15-Minute Business Growth Audit bilkul complimentary hai! 🚀\n\nMain aapke current ads, Instagram page aur website ka live audit karke top 3 conversion leaks identify karunga.\n\nKya aaj shaam ya kal subah 10-15 minute ki call convenient rahegi aapke liye?`;
+  }
+
+  // E. Proof / Case Studies / Clients / Results
+  if (
+    q.includes('proof') ||
+    q.includes('result') ||
+    q.includes('amparo') ||
+    q.includes('case study') ||
+    q.includes('client') ||
+    q.includes('kaam dikhao')
+  ) {
+    return `Hamare verified client results:\n• Amparo (D2C Skincare): ₹2.4 Lakhs revenue in 30 days, 3.8x ROAS aur -28% RTO drop.\n• Nacho G (Mexican Cafe): Weekend footfall me 40% jump.\n• The Bunker Cafe: 1+ year regular clients.\n\nHum real bank balance growth deliver karte hain! Aapka business kis category me hai?`;
+  }
+
+  // F. Doctor / Clinic / Healthcare
+  if (q.includes('clinic') || q.includes('doctor') || q.includes('patient') || q.includes('opd') || q.includes('hospital')) {
+    return `Clinics aur doctors ke liye hamara CareSlot AI Agent 24/7 patient appointments book karta hai aur automated tokens & clinic GPS directions WhatsApp par bhejta hai. OPD rush 60% smooth ho jata hai! Aapka clinic kis specialization me hai?`;
+  }
+
+  // G. Restaurant / Cafe / Dining
+  if (q.includes('restaurant') || q.includes('cafe') || q.includes('food') || q.includes('table') || q.includes('dining')) {
+    return `Restaurants aur cafes ke liye hamara SmartDine AI Agent WhatsApp par automated table reservations aur digital food menu distribution handle karta hai — bina kisi staff ke! Aapka restaurant kahan located hai?`;
+  }
+
+  // H. Greetings: Hi, Hello, Hlo, Hey, Namaste, Kon ho
+  if (
+    q === 'hi' ||
+    q === 'hello' ||
+    q === 'hlo' ||
+    q === 'hey' ||
+    q === 'namaste' ||
+    q.includes('kon ho') ||
+    q.includes('who are you')
+  ) {
+    return `Namaste! 🙏 Main Mukul Mishra hu, founder of MSR Next Gen.\n\nHum Indian businesses aur D2C brands ke liye high-converting Meta/Google Ads aur 24/7 AI WhatsApp Agents banate hain jisse daily qualified leads aati hain.\n\nAap kis business ke liye marketing ya automation dekh rahe hain?`;
+  }
+
+  // 2. REAL CLOUD LLM CONVERSATION (Pollinations GPT-4o-mini)
   const recentHistory = customer.history
-    .slice(-8)
-    .map((m) => `${m.sender === 'customer' ? 'Client' : 'Mukul (MSR Next Gen)'}: "${m.text}"`)
+    .slice(-6)
+    .map((m) => `${m.sender === 'customer' ? 'Client' : 'Mukul'}: "${m.text}"`)
     .join('\n');
 
   const systemPrompt = `You are Mukul Mishra, founder of MSR Next Gen (Premium Growth Marketing & 24/7 AI WhatsApp Automation Agency in India).
-You are speaking directly with a potential business client on WhatsApp.
+You are speaking directly with a business owner on WhatsApp.
+CRITICAL GUIDELINES:
+1. Warm, natural, consultative Hinglish (like an experienced growth partner).
+2. Concise: 2 to 3 sentences maximum per message. No robotic brochures or long walls of text.
+3. Packages start around ₹15,000/mo. Mention Free 15-Minute Audit.
+4. Real proof: Amparo D2C (₹2.4L revenue in 30 days, 3.8x ROAS), Nacho G cafe.
+5. End with ONE thoughtful discovery question to understand their business.`;
 
-CRITICAL IDENTITY & SALES PSYCHOLOGY GUIDELINES:
-1. Speak in warm, natural, consultative Hinglish (like an experienced, sharp growth partner who genuinely wants their business to win).
-2. NEVER sound like a robotic AI chatbot. Do NOT write bulleted marketing brochures or long overwhelming essays.
-3. Keep your reply concise (2-4 sentences max per message) so it feels like a real human typing on a phone.
-4. Active Listening: Acknowledge their specific problem with empathy ("Yeh problem 90% founders face karte hain...").
-5. Real Proof Drops: Casually reference real client work when relevant (e.g. "Jaise Amparo D2C ke liye humne WhatsApp lead qualification lagayi to CPL 40% drop ho gaya" or "Nacho G cafe ke weekend bookings 3x ho gaye").
-6. OPEN-ENDED DISCOVERY: Always end with ONE thoughtful, open-ended question that encourages them to share their numbers or bottlenecks (e.g. "Abhi monthly ads par lagbhag kitna spend ho raha hai?", "Leads aati hain par call par log convert nahi ho rahe ya CPL zyada aa rahi hai?").
-7. If the customer shared an Instagram handle or link, refer to the audit findings naturally and ask their take on it.
-8. If the customer is asking about price/charges, do NOT give generic fake numbers. Say: "Charges business ke scale aur ads budget par depend karte hain. Pehle main aapka 15-minute free audit kar deta hu taaki clear roadmap mil sake. Kya aaj shaam ko 10-15 minute ki call comfortable rahegi?"
+  const aiReply = await callPollinationsAI(systemPrompt, incomingText, recentHistory);
+  if (aiReply) return aiReply;
 
-CUSTOMER PROFILE IN MEMORY:
-- Client Name: ${customer.name || 'Founder'}
-- Business Name: ${customer.businessName || 'Not yet disclosed'}
-- Business Category: ${customer.category || 'General'}
-- Current Budget: ${customer.budget || 'Not yet known'}
-- Identified Pain Point: ${customer.painPoint || 'Needs growth & automation'}
-- Website/Instagram: ${customer.websiteUrl || 'None shared yet'}
-- Audit Notes: ${customer.auditFindings || 'None'}
-- Funnel Stage: ${customer.stage}
-
-RECENT CONVERSATION HISTORY:
-${recentHistory}
-
-Latest Message from Client: "${incomingText}"
-
-Write your next natural, consultative reply in Hinglish now:`;
-
-  // 1. Try Groq for ultra-fast natural human response
-  if (groqKey) {
-    const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'llama-3.3-70b-versatile'];
-    for (const model of models) {
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${groqKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: incomingText },
-            ],
-            temperature: 0.35,
-            max_tokens: 220,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const reply = data.choices?.[0]?.message?.content;
-          if (reply && reply.trim()) return reply.trim().replace(/^"|"$/g, '');
-        }
-      } catch {}
-    }
+  // 3. Dynamic Contextual Fallbacks (Ensures zero repetitive responses)
+  if (historyLen > 4) {
+    return `Aapka requirement samajh aa gaya hai. Isko live discuss karne aur exact ads strategy finalize karne ke liye kya hum aaj 10 minute ki quick phone call ya WhatsApp call schedule karein?`;
+  } else if (historyLen > 2) {
+    return `Bilkul! Hum aapke specific business goals ke hisab se customized campaign structure design karte hain. Kya aap apna business name aur monthly estimated budget share karenge taaki main ek clear roadmap share kar saku?`;
   }
 
-  // 2. Try Gemini
-  if (geminiKey) {
-    const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
-    for (const model of models) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `${systemPrompt}\n\nUser: ${incomingText}` }] }],
-              generationConfig: { temperature: 0.35, maxOutputTokens: 250 },
-            }),
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return text.trim().replace(/^"|"$/g, '');
-        }
-      } catch {}
-    }
-  }
-
-  // High-converting fallback if API is unreachable
-  return `Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.`;
+  return `Namaste! MSR Next Gen me aapka swagat hai. Hum Meta & Google Ads aur 24/7 AI WhatsApp bots se aapke sales scale karte hain. Aap kis business ke liye marketing ya AI automation explore kar rahe hain?`;
 }
 
 // =============================================================================
@@ -320,12 +365,10 @@ ${customer.history.slice(-2).map((m) => `• ${m.sender === 'customer' ? 'Client
 _Dispatched via MSR Multi-Agent Sales Mind_`;
 
   try {
-    // Send to primary number requested by user (+91 88875 21156)
     const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
     await sock.sendMessage(primaryJid, { text: dossierMessage });
     console.log(`[Executive Dossier Sent to Mukul at ${MUKUL_PRIMARY_ALERT_PHONE}] for lead +${customer.phone}`);
 
-    // If backup phone is different, also send
     if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
       const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
       await sock.sendMessage(backupJid, { text: dossierMessage });

@@ -177,6 +177,18 @@ CRITICAL RULES:
     }
   }
 
+  // Try Keyless Pollinations AI
+  try {
+    const url = `https://text.pollinations.ai/${encodeURIComponent(userQuery)}?system=${encodeURIComponent(systemPrompt)}&model=openai`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 10 && !text.trim().startsWith('{')) {
+        return text.trim();
+      }
+    }
+  } catch {}
+
   return 'Namaste! Main MSR Next Gen ki AI Assistant hu. Hum aapke business ke liye high-converting Meta Ads aur 24/7 AI WhatsApp Chatbots setup karte hain. Free 15-minute audit ke liye +91 95193 42440 par sampark karein!';
 }
 
@@ -303,7 +315,7 @@ async function startAdminWhatsAppSocket() {
 
         const now = Date.now();
         const lastReplied = lastAdminReplyPerUser.get(senderJid) || 0;
-        if (now - lastReplied < 15000) return;
+        if (now - lastReplied < 3000) return;
         lastAdminReplyPerUser.set(senderJid, now);
 
         try {
