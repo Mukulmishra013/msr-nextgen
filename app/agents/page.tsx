@@ -352,6 +352,8 @@ export default function AgentsDirectoryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          agentId: activeTestAgent?.id,
+          agentName: activeTestAgent?.name,
           messages: [
             ...testChatMessages.map((m) => ({
               role: m.sender === 'ai' ? 'assistant' : 'user',

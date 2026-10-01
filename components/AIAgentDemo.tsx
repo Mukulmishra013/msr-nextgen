@@ -338,7 +338,15 @@ export default function AIAgentDemo() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: textToSend.trim() }],
+          agentId: currentScenario?.id,
+          agentName: currentScenario?.title,
+          messages: [
+            ...displayedMessages.map((m) => ({
+              role: m.sender === 'ai' ? ('assistant' as const) : ('user' as const),
+              content: m.text,
+            })),
+            { role: 'user' as const, content: textToSend.trim() },
+          ],
         }),
       });
       const data = await res.json();

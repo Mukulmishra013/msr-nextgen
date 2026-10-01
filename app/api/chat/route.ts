@@ -7,25 +7,85 @@ interface ChatMessage {
   content: string;
 }
 
-const SYSTEM_PROMPT = `You are Maya, the intelligent AI Growth Assistant for "MSR Next Gen" — India's premier digital marketing & AI automation agency founded by Mukul.
+const MAYA_SYSTEM_PROMPT = `You are Maya, the intelligent AI Growth Assistant for "MSR Next Gen" — India's premier digital marketing & AI automation agency founded by Mukul.
 
 Agency Background:
 - Specializes in: High-ROI Meta Ads (Instagram/Facebook), Google Ads, and 24/7 AI WhatsApp Chatbot Agents for Indian businesses & D2C brands.
-- Proof: Managed brands like Amparo (D2C skincare, ₹2.4 Lakhs revenue in 30 days, 3.8x ROAS), local restaurants, retail stores.
+- Proof: Managed brands like Amparo (D2C skincare, ₹2.4 Lakhs revenue in 30 days, 3.8x ROAS), local restaurants (Nacho G, The Bunker Cafe), retail stores.
 - Founder & Team: Mukul (Founder & Growth Architect).
 - Official WhatsApp / Sales: +91 95193 42440
 - Customer Care: +91 88875 21156
 - Official Email: msbestshoopingpro@gmail.com
 - Offer: Free 15-Minute Business Growth & Ads Audit.
+- Packages start around ₹15,000/month.
 
 Guidelines:
-1. Be warm, professional, and knowledgeable.
+1. Be warm, professional, helpful, and knowledgeable.
 2. Match the user's language: If they ask in Hindi or Hinglish, reply in natural, friendly Hinglish. If in English, reply in crisp English.
 3. Keep responses concise (usually 2 to 4 sentences or bullet points, max 100 words) so it feels like a fast live chat.
-4. When asked about pricing, explain that packages start around ₹15,000/month depending on ad spend & scale, and invite them for a free 15-minute audit on WhatsApp (+91 95193 42440).
-5. Always guide interested business owners toward booking a free audit or reaching out on WhatsApp.`;
+4. When asked about pricing, mention packages start around ₹15,000/month and invite them to connect on WhatsApp (+91 95193 42440) for a free 15-minute audit.
+5. Always guide interested business owners toward booking a free audit or messaging on WhatsApp.`;
 
-async function callGroqChat(messages: ChatMessage[], apiKey: string): Promise<string | null> {
+const AGENT_PROMPTS: Record<string, string> = {
+  'restaurant-smart-dine': `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+  food: `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+
+  'clinic-care-slot': `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+  healthcare: `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+
+  'd2c-cod-shield': `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness: ₹2.4L revenue, 3.8x ROAS, -28% RTO). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences).`,
+  d2c: `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences).`,
+
+  'edu-enroll-agent': `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short.`,
+  education: `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short.`,
+
+  'real-estate-lead-matcher': `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short.`,
+  realestate: `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short.`,
+
+  'whatsapp-autopilot': `You are WhatsApp 24/7 AI Sales Pilot by MSR Next Gen. You automate customer sales, catalog sharing, and order locking 24/7 on WhatsApp. Reply in natural Hinglish. Keep it short.`,
+
+  'omni-support-bot': `You are OmniDesk AI Support Agent by MSR Next Gen. You provide instant tier-1 customer support, order tracking, and FAQ resolution. Reply in friendly Hinglish.`,
+};
+
+// 1. Keyless Free LLM (Pollinations AI - OpenAI GPT-4o-mini engine)
+async function callPollinationsAI(messages: ChatMessage[], systemPrompt: string): Promise<string | null> {
+  try {
+    const lastMsg = messages[messages.length - 1]?.content || '';
+    if (!lastMsg) return null;
+
+    const conversationSnippet = messages
+      .slice(-4)
+      .map((m) => `${m.role === 'user' ? 'Customer' : 'Assistant'}: ${m.content}`)
+      .join('\n');
+
+    const promptToSend = encodeURIComponent(
+      `Conversation:\n${conversationSnippet}\n\nRespond as Assistant to the last message (concise, 2-4 sentences in Hinglish/Hindi):`
+    );
+    const encodedSystem = encodeURIComponent(systemPrompt);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
+    const url = `https://text.pollinations.ai/${promptToSend}?system=${encodedSystem}&model=openai`;
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (text && text.trim().length > 5 && !text.trim().startsWith('{')) {
+      return text.trim();
+    }
+  } catch {
+    // fallback
+  }
+  return null;
+}
+
+// 2. Groq Fallback (if key is configured)
+async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
   const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
   for (const model of models) {
     try {
@@ -38,7 +98,7 @@ async function callGroqChat(messages: ChatMessage[], apiKey: string): Promise<st
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: systemPrompt },
             ...messages.slice(-6),
           ],
           temperature: 0.4,
@@ -57,7 +117,8 @@ async function callGroqChat(messages: ChatMessage[], apiKey: string): Promise<st
   return null;
 }
 
-async function callGeminiChat(messages: ChatMessage[], apiKey: string): Promise<string | null> {
+// 3. Gemini Fallback (if key is configured)
+async function callGeminiChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
   const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
   for (const model of models) {
     try {
@@ -73,7 +134,7 @@ async function callGeminiChat(messages: ChatMessage[], apiKey: string): Promise<
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: `${SYSTEM_PROMPT}\nEnsure all sentences and bullet points are 100% complete. Do not truncate or stop abruptly.` }],
+              parts: [{ text: `${systemPrompt}\nEnsure responses are complete.` }],
             },
             contents,
             generationConfig: {
@@ -99,7 +160,7 @@ export async function POST(req: NextRequest) {
   try {
     const forwardedFor = req.headers.get('x-forwarded-for');
     const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : '127.0.0.1';
-    const rateLimit = checkRateLimit(`chat_${clientIp}`, 30, 60 * 1000);
+    const rateLimit = checkRateLimit(`chat_${clientIp}`, 40, 60 * 1000);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -112,7 +173,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { messages } = body;
+    const { messages, agentId, scenario } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -121,48 +182,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const groqKey = process.env.GROQ_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const effectiveAgentId = (agentId || scenario || '').toLowerCase();
+    const systemPrompt = AGENT_PROMPTS[effectiveAgentId] || MAYA_SYSTEM_PROMPT;
 
     const lastUserMsg = messages[messages.length - 1]?.content || '';
-    const knowledgeAnswer = getSmartAssistantAnswer(lastUserMsg, messages.length);
+    const knowledgeAnswer = getSmartAssistantAnswer(lastUserMsg, messages.length, effectiveAgentId);
 
     let aiReply: string | null = null;
     let provider = 'rules';
 
-    // 1. If it matches a specific knowledge intent (Pricing, Ads, Bots, Audits, D2C, Food, Healthcare, Real Estate), return authoritative answer instantly
-    if (knowledgeAnswer && !knowledgeAnswer.startsWith('Namaste! MSR Next Gen me aapka swagat hai')) {
+    // 1. High-priority instant knowledge check
+    // If it's a specific question (pricing, audit, booking, features, domain queries)
+    if (
+      knowledgeAnswer &&
+      !knowledgeAnswer.startsWith('Namaste! MSR Next Gen me aapka swagat hai')
+    ) {
       aiReply = knowledgeAnswer;
-      provider = 'msr_knowledge_base';
+      provider = effectiveAgentId ? `${effectiveAgentId}_agent_brain` : 'msr_knowledge_base';
     }
 
-    // 2. Otherwise try LLM if configured
+    // 2. Real Cloud LLM (Pollinations AI - GPT-4o Keyless Engine)
+    if (!aiReply) {
+      const pollinationsReply = await callPollinationsAI(messages, systemPrompt);
+      if (pollinationsReply) {
+        aiReply = pollinationsReply;
+        provider = 'pollinations_gpt4o';
+      }
+    }
+
+    // 3. Optional Groq / Gemini (if keys available in environment)
+    const groqKey = process.env.GROQ_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
     if (!aiReply && groqKey) {
-      const groqReply = await callGroqChat(messages, groqKey);
-      if (groqReply) {
-        const replacementCount = (groqReply.match(/\uFFFD/g) || []).length;
-        if (replacementCount <= 2 && groqReply.length > 10) {
-          aiReply = groqReply;
-          provider = 'groq';
-        }
+      const groqReply = await callGroqChat(messages, systemPrompt, groqKey);
+      if (groqReply && (groqReply.match(/\uFFFD/g) || []).length <= 2) {
+        aiReply = groqReply;
+        provider = 'groq';
       }
     }
 
     if (!aiReply && geminiKey) {
-      const geminiReply = await callGeminiChat(messages, geminiKey);
-      if (geminiReply) {
-        const replacementCount = (geminiReply.match(/\uFFFD/g) || []).length;
-        if (replacementCount <= 2 && geminiReply.length > 10) {
-          aiReply = geminiReply;
-          provider = 'gemini';
-        }
+      const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
+      if (geminiReply && (geminiReply.match(/\uFFFD/g) || []).length <= 2) {
+        aiReply = geminiReply;
+        provider = 'gemini';
       }
     }
 
-    // 3. Final conversational fallback
+    // 4. Reliable smart assistant heuristic fallback
     if (!aiReply) {
       aiReply = knowledgeAnswer;
-      provider = 'msr_ai_brain';
+      provider = 'msr_ai_fallback';
     }
 
     return NextResponse.json({
