@@ -8,12 +8,12 @@ interface ChatMessage {
   content: string;
 }
 
-const MAYA_SYSTEM_PROMPT = `You are Maya, the intelligent AI Growth Assistant for "MSR Next Gen" — India's premier digital marketing & AI automation agency founded by Mukul.
+const MAYA_SYSTEM_PROMPT = `You are Maya, the intelligent AI Growth Assistant for "MSR Next Gen" — India's premier digital marketing & AI automation agency founded by Mukul Mishra.
 
 Agency Background:
 - Specializes in: High-ROI Meta Ads (Instagram/Facebook), Google Ads, and 24/7 AI WhatsApp Chatbot Agents for Indian businesses & D2C brands.
 - Proof: Managed brands like Amparo (D2C skincare, ₹2.4 Lakhs revenue in 30 days, 3.8x ROAS), local restaurants (Nacho G, The Bunker Cafe), retail stores.
-- Founder & Team: Mukul (Founder & Growth Architect).
+- Founder & Team: Mukul Mishra (Founder & Growth Architect).
 - Official WhatsApp / Sales: +91 95193 42440
 - Customer Care: +91 88875 21156
 - Official Email: msbestshoopingpro@gmail.com
@@ -21,27 +21,28 @@ Agency Background:
 - Packages start around ₹15,000/month.
 
 Guidelines:
-1. Be warm, professional, helpful, and knowledgeable.
+1. You are Maya, the AI assistant, NOT Mukul. Speak warmly as Maya representing MSR Next Gen.
 2. Match the user's language: If they ask in Hindi or Hinglish, reply in natural, friendly Hinglish. If in English, reply in crisp English.
 3. Keep responses concise (usually 2 to 4 sentences or bullet points, max 100 words) so it feels like a fast live chat.
 4. When asked about pricing, mention packages start around ₹15,000/month and invite them to connect on WhatsApp (+91 95193 42440) for a free 15-minute audit.
-5. Autonomous Onboarding: If the user provides their business name, category, or WhatsApp number, warmly acknowledge it, confirm that their onboarding request is logged, and invite them for a quick confirmation call.`;
+5. If the user writes gibberish, random letters (e.g. 'xyz', 'test', 'asdf'), or unclear queries, DO NOT assume or claim anything was booked or ordered. Instead, politely ask in friendly Hinglish how you can help their business.
+6. Autonomous Onboarding: If the user provides their business name, category, or WhatsApp number, warmly acknowledge it, confirm that their onboarding request is logged, and invite them for a quick confirmation call.`;
 
 const AGENT_PROMPTS: Record<string, string> = {
-  'restaurant-smart-dine': `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
-  food: `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+  'restaurant-smart-dine': `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences). If the user message is gibberish or random letters (e.g. 'xyz'), do NOT book anything; politely ask for their reservation details (guests, date, time) or menu questions.`,
+  food: `You are SmartDine AI Agent for restaurants and cafes (like Nacho G and The Bunker Cafe) by MSR Next Gen. You handle 24/7 table reservations, party bookings, food menus, and pre-orders on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences). If the user message is gibberish or random letters (e.g. 'xyz'), do NOT book anything; politely ask for their reservation details or menu questions.`,
 
-  'clinic-care-slot': `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
-  healthcare: `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences).`,
+  'clinic-care-slot': `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences). If the user message is gibberish or random letters (e.g. 'xyz'), do NOT book anything; politely ask which doctor/specialist or timings they are looking for.`,
+  healthcare: `You are CareSlot AI Agent for clinics and doctors by MSR Next Gen. You handle 24/7 patient appointments, token timings, and clinic GPS directions on WhatsApp. Reply warmly in natural Hinglish. Keep it short (2-3 sentences). If the user message is gibberish or random letters (e.g. 'xyz'), do NOT book anything; politely ask which doctor/specialist or timings they are looking for.`,
 
-  'd2c-cod-shield': `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness: ₹2.4L revenue, 3.8x ROAS, -28% RTO). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences).`,
-  d2c: `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences).`,
+  'd2c-cod-shield': `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness: ₹2.4L revenue, 3.8x ROAS, -28% RTO). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences). If the user message is random letters or unclear, politely ask about their e-commerce store or order inquiry.`,
+  d2c: `You are D2C Anti-RTO Shield AI Agent for e-commerce and Shopify stores by MSR Next Gen (proven with Amparo Wellness). You verify Cash on Delivery orders, detect fake addresses, and reduce RTO by 35%. Reply in crisp Hinglish. Keep it short (2-3 sentences). If the user message is random letters or unclear, politely ask about their e-commerce store or order inquiry.`,
 
-  'edu-enroll-agent': `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short.`,
-  education: `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short.`,
+  'edu-enroll-agent': `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short. If the user message is gibberish, politely ask which class or course they are interested in.`,
+  education: `You are EduEnroll AI Agent for schools and coaching institutes by MSR Next Gen. You answer parents' fee structure and syllabus queries, and book demo classes. Reply in friendly Hinglish. Keep it short. If the user message is gibberish, politely ask which class or course they are interested in.`,
 
-  'real-estate-lead-matcher': `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short.`,
-  realestate: `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short.`,
+  'real-estate-lead-matcher': `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short. If the user message is gibberish, politely ask for their budget and preferred location.`,
+  realestate: `You are EstateMatch AI Agent for builders and property brokers by MSR Next Gen. You filter high-ticket buyer budgets, deliver floor plans, and book site visits. Reply in professional Hinglish. Keep it short. If the user message is gibberish, politely ask for their budget and preferred location.`,
 
   'whatsapp-autopilot': `You are WhatsApp 24/7 AI Sales Pilot by MSR Next Gen. You automate customer sales, catalog sharing, and order locking 24/7 on WhatsApp. Reply in natural Hinglish. Keep it short.`,
 
@@ -122,7 +123,7 @@ async function callNvidiaNim(messages: ChatMessage[], systemPrompt: string, apiK
 
 // 3. Groq Provider
 async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
-  const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+  const models = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
   for (const model of models) {
     try {
       const controller = new AbortController();
@@ -162,7 +163,7 @@ async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKe
 
 // 4. Gemini Provider (if valid key provided)
 async function callGeminiChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const models = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
   for (const model of models) {
     try {
       const contents = messages.slice(-6).map((m) => ({
@@ -299,18 +300,8 @@ export async function POST(req: NextRequest) {
     let aiReply: string | null = null;
     let provider = 'rules';
 
-    // 1. High-priority instant domain knowledge check
-    if (
-      knowledgeAnswer &&
-      !knowledgeAnswer.startsWith('Namaste! MSR Next Gen me aapka swagat hai')
-    ) {
-      aiReply = knowledgeAnswer;
-      provider = effectiveAgentId ? `${effectiveAgentId}_agent_brain` : 'msr_knowledge_base';
-    }
-
-    // 2. OpenRouter AI (Primary High-Intelligence Cloud Router)
+    // 1. OpenRouter AI (Primary High-Intelligence Cloud Router)
     const openrouterKey = process.env.OPENROUTER_API_KEY;
-
     if (!aiReply && openrouterKey) {
       const orReply = await callOpenRouter(messages, systemPrompt, openrouterKey);
       if (orReply) {
@@ -319,14 +310,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Groq Cloud Engine
+    // 2. Groq Cloud Engine (Ultra-fast Qwen / Llama)
     const groqKey = process.env.GROQ_API_KEY;
-
     if (!aiReply && groqKey) {
       const groqReply = await callGroqChat(messages, systemPrompt, groqKey);
       if (groqReply) {
         aiReply = groqReply;
         provider = 'groq';
+      }
+    }
+
+    // 3. Google Gemini Flash
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!aiReply && geminiKey && (geminiKey.startsWith('AIzaSy') || geminiKey.startsWith('AQ.'))) {
+      const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
+      if (geminiReply) {
+        aiReply = geminiReply;
+        provider = 'gemini';
       }
     }
 
@@ -340,17 +340,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Gemini Flash (if valid key configured)
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!aiReply && geminiKey && (geminiKey.startsWith('AIzaSy') || geminiKey.startsWith('AQ.'))) {
-      const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
-      if (geminiReply) {
-        aiReply = geminiReply;
-        provider = 'gemini';
-      }
-    }
-
-    // 6. Pollinations AI Keyless GPT-4o-mini
+    // 5. Pollinations AI Keyless GPT-4o-mini
     if (!aiReply) {
       const pollinationsReply = await callPollinationsAI(messages, systemPrompt);
       if (pollinationsReply) {
@@ -359,8 +349,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. Heuristic Contextual Fallback
+    // 6. Last-resort Offline Fallback ONLY if all 5 live LLM providers failed or timed out
     if (!aiReply) {
+      const knowledgeAnswer = getSmartAssistantAnswer(lastUserMsg, messages.length, effectiveAgentId);
       aiReply = knowledgeAnswer;
       provider = 'msr_ai_fallback';
     }

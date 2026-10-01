@@ -187,9 +187,19 @@
         "sender": "ai",
         "text": "Namaste! 🙏 Main Mukul Mishra hu, founder of MSR Next Gen.\n\nHum Indian businesses aur D2C brands ke liye high-converting Meta/Google Ads aur 24/7 AI WhatsApp Agents banate hain jisse daily qualified leads aati hain.\n\nAap kis business ke liye marketing ya automation dekh rahe hain?",
         "timestamp": 1790874612518
+      },
+      {
+        "sender": "customer",
+        "text": "Hlo",
+        "timestamp": 1790876067684
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! 🙏 Main Mukul Mishra hu, founder of MSR Next Gen.\n\nHum Indian businesses aur D2C brands ke liye high-converting Meta/Google Ads aur 24/7 AI WhatsApp Agents banate hain jisse daily qualified leads aati hain.\n\nAap kis business ke liye marketing ya automation dekh rahe hain?",
+        "timestamp": 1790876067686
       }
     ],
-    "lastActive": 1790874612517,
+    "lastActive": 1790876067684,
     "alertSentToOwner": false,
     "notes": ""
   }
