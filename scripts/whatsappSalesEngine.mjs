@@ -303,7 +303,7 @@ async function callGeminiChat(systemPrompt, incomingText, recentHistory, apiKey)
   const models = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
   for (const model of models) {
     try {
-      const promptText = `Instructions:\n${systemPrompt}\n\nRecent History:\n${recentHistory || 'No previous history'}\n\nClient message: "${incomingText}"\n\nReply as Mukul Mishra in natural, conversational Hinglish (2-3 sentences max):`;
+      const promptText = `Instructions:\n${systemPrompt}\n\nRecent History:\n${recentHistory || 'No previous history'}\n\nClient message: "${incomingText}"\n\nReply as Maya (MSR Next Gen AI Growth Assistant) in natural, conversational Hinglish (2-3 sentences max):`;
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -333,7 +333,7 @@ async function callGeminiChat(systemPrompt, incomingText, recentHistory, apiKey)
 async function callPollinationsAI(systemPrompt, incomingText, recentHistory) {
   try {
     const promptToSend = encodeURIComponent(
-      `Conversation History:\n${recentHistory}\n\nClient's Message: "${incomingText}"\n\nReply as Mukul Mishra (MSR Next Gen) in warm, natural Hinglish (2-3 sentences max, consultative, human-like):`
+      `Conversation History:\n${recentHistory}\n\nClient's Message: "${incomingText}"\n\nReply as Maya (MSR Next Gen AI Growth Assistant) in warm, natural Hinglish (2-3 sentences max, consultative, human-like):`
     );
     const encodedSystem = encodeURIComponent(systemPrompt);
     const controller = new AbortController();
@@ -360,18 +360,20 @@ export async function generateConsultativeSalesReply(customer, incomingText) {
   const historyLen = customer.history.length;
   const recentHistory = customer.history
     .slice(-6)
-    .map((m) => `${m.sender === 'customer' ? 'Client' : 'Mukul'}: "${m.text}"`)
+    .map((m) => `${m.sender === 'customer' ? 'Client' : 'Maya (AI)'}: "${m.text}"`)
     .join('\n');
 
-  const systemPrompt = `You are Mukul Mishra, founder of MSR Next Gen (Growth Marketing & 24/7 AI WhatsApp Automation Agency in India).
-You are speaking directly with a business owner on WhatsApp.
-CRITICAL GUIDELINES:
-1. Warm, natural, consultative Hinglish (like an experienced growth partner).
-2. Concise: 2 to 3 sentences maximum per message. No robotic brochures or long walls of text.
-3. Packages start around ₹15,000/mo. Mention Free 15-Minute Audit when relevant.
-4. Real proof: Amparo D2C (₹2.4L revenue in 30 days, 3.8x ROAS, -28% RTO drop), Nacho G cafe (+40% weekend jump).
-5. If the user writes random characters, gibberish (e.g. 'xyz', 'test', 'asdf'), do NOT assume or claim anything was booked; politely ask how you can help their business.
-6. End with ONE thoughtful discovery question to understand their business.`;
+  const systemPrompt = `You are Maya, the 24/7 AI Growth Assistant for "MSR Next Gen", founded by Mukul Mishra (Growth Marketing & 24/7 AI WhatsApp Automation Agency in India).
+You are speaking directly with a business owner on WhatsApp representing Mukul and MSR Next Gen.
+CRITICAL PERSONA RULES:
+1. NEVER claim to be Mukul Mishra himself. NEVER say "Main Mukul hu" or "Mera naam Mukul hai".
+2. If asked who you are or who runs the agency, introduce yourself as Maya (AI Growth Assistant at MSR Next Gen) and explain that Mukul Mishra is the founder and Growth Architect.
+3. Warm, natural, consultative Hinglish (like an experienced growth partner).
+4. Concise: 2 to 3 sentences maximum per message. No robotic brochures or long walls of text.
+5. Packages start around ₹15,000/mo. Mention Free 15-Minute Business Growth Audit with Mukul when relevant.
+6. Real proof: Amparo D2C (₹2.4L revenue in 30 days, 3.8x ROAS, -28% RTO drop), Nacho G cafe (+40% weekend jump).
+7. If the user writes random characters, gibberish (e.g. 'xyz', 'test', 'asdf'), do NOT assume or claim anything was booked; politely ask how you can help their business.
+8. End with ONE thoughtful discovery question to understand their business.`;
 
   // 1. OpenRouter (Primary High-Intelligence Router)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -400,12 +402,12 @@ CRITICAL GUIDELINES:
 
   // 5. Dynamic Contextual Fallback (Offline emergency only)
   if (historyLen > 4) {
-    return `Aapka requirement samajh aa gaya hai. Isko live discuss karne aur exact ads strategy finalize karne ke liye kya hum aaj 10 minute ki quick phone call ya WhatsApp call schedule karein?`;
+    return `Aapka requirement samajh aa gaya hai. Isko live discuss karne aur exact ads strategy finalize karne ke liye kya hum Mukul ke sath aaj 10 minute ki quick call schedule karein?`;
   } else if (historyLen > 2) {
     return `Bilkul! Hum aapke specific business goals ke hisab se customized campaign structure design karte hain. Kya aap apna business name aur monthly estimated budget share karenge taaki main ek clear roadmap share kar saku?`;
   }
 
-  return `Namaste! MSR Next Gen me aapka swagat hai. Hum Meta & Google Ads aur 24/7 AI WhatsApp bots se aapke sales scale karte hain. Aap kis business ke liye marketing ya AI automation explore kar rahe hain?`;
+  return `Namaste! Main Maya hu, MSR Next Gen se (founded by Mukul Mishra). Hum Meta & Google Ads aur 24/7 AI WhatsApp bots se aapke sales scale karte hain. Aap kis business ke liye marketing ya AI automation explore kar rahe hain?`;
 }
 
 // =============================================================================
