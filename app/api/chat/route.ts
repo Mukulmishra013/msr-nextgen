@@ -162,7 +162,7 @@ async function callGroqChat(messages: ChatMessage[], systemPrompt: string, apiKe
 
 // 4. Gemini Provider (if valid key provided)
 async function callGeminiChat(messages: ChatMessage[], systemPrompt: string, apiKey: string): Promise<string | null> {
-  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-flash-latest'];
+  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   for (const model of models) {
     try {
       const contents = messages.slice(-6).map((m) => ({
@@ -342,7 +342,7 @@ export async function POST(req: NextRequest) {
 
     // 5. Gemini Flash (if valid key configured)
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!aiReply && geminiKey && geminiKey.startsWith('AIzaSy')) {
+    if (!aiReply && geminiKey && (geminiKey.startsWith('AIzaSy') || geminiKey.startsWith('AQ.'))) {
       const geminiReply = await callGeminiChat(messages, systemPrompt, geminiKey);
       if (geminiReply) {
         aiReply = geminiReply;
