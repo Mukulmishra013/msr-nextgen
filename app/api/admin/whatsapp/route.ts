@@ -10,7 +10,7 @@ async function fetchFromWorker(path: string, options?: RequestInit): Promise<Res
     try {
       const res = await fetch(`${base}${path}`, {
         ...options,
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(12000),
       });
       if (res.ok) return res;
     } catch {

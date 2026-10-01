@@ -248,7 +248,11 @@ async function startAdminWhatsAppSocket() {
         adminLastError = lastDisconnect?.error?.message || 'Disconnected';
 
         console.log(`[Admin WhatsApp Closed] Status: ${statusCode}. Reconnecting in 3s...`);
-        if (isLoggedOut) {
+        if (adminSock) {
+          try { adminSock.end(); } catch {}
+          adminSock = null;
+        }
+        if (isLoggedOut || statusCode === 408 || String(adminLastError).includes('QR refs')) {
           try {
             fs.rmSync(ADMIN_AUTH_DIR, { recursive: true, force: true });
             fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });
