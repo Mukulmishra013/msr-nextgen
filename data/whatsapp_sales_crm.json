@@ -35,5 +35,52 @@
     "lastActive": 1790864312715,
     "alertSentToOwner": true,
     "notes": ""
+  },
+  "33032778027137": {
+    "phone": "33032778027137",
+    "name": "",
+    "businessName": "",
+    "category": "Unclassified",
+    "budget": "",
+    "painPoint": "",
+    "websiteUrl": "",
+    "auditFindings": "",
+    "stage": "discovery",
+    "psychologyNotes": "New inbound lead. Needs discovery.",
+    "history": [
+      {
+        "sender": "customer",
+        "text": "Hi, I want to know more about MSR services for my business.",
+        "timestamp": 1790867555009
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.",
+        "timestamp": 1790867555015
+      },
+      {
+        "sender": "customer",
+        "text": "Abhi kuch nhi kar rahe hai",
+        "timestamp": 1790867587102
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.",
+        "timestamp": 1790867587105
+      },
+      {
+        "sender": "customer",
+        "text": "Hi MSR Next Gen, I would like to chat about growing my business.",
+        "timestamp": 1790867640736
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste! Aapke business ko samajh kar hi hum customized ads aur AI setup plan karte hain. Aap abhi Meta ads chala rahe hain ya organic se inquiries aati hain? Thoda detail batayenge to main quick review kar deta hu.",
+        "timestamp": 1790867640740
+      }
+    ],
+    "lastActive": 1790867640736,
+    "alertSentToOwner": false,
+    "notes": ""
   }
 }

@@ -38,3 +38,5 @@ next-env.d.ts
 .whatsapp_auth_sandbox/
 *.log
 google-services*.json
+
+.vercel

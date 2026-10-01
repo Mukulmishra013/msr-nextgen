@@ -138,15 +138,43 @@ export async function POST(req: NextRequest) {
 
     if (!aiReply) {
       const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
-      if (lastUserMsg.includes('price') || lastUserMsg.includes('cost') || lastUserMsg.includes('kharcha')) {
+
+      if (lastUserMsg.includes('price') || lastUserMsg.includes('cost') || lastUserMsg.includes('kharcha') || lastUserMsg.includes('fees') || lastUserMsg.includes('package')) {
         aiReply =
-          'Hamare Meta Ads aur WhatsApp AI bot management packages ₹15,000/month se start hote hain. Exact budget aapke business scale aur ad spend par depend karta hai. Kya aap ek quick 15-min free audit book karna chahenge?';
-      } else if (lastUserMsg.includes('whatsapp') || lastUserMsg.includes('bot') || lastUserMsg.includes('agent')) {
+          'Hamare Meta/Google Ads and 24/7 AI WhatsApp bot management packages ₹15,000/month se start hote hain (complete ad creative + targeting + 24/7 AI lead capture included). Exact investment aapke business scale aur ad spend par depend karta hai. Kya aap ek quick 15-minute free growth audit book karna chahenge?';
+      } else if (lastUserMsg.includes('d2c') || lastUserMsg.includes('ecom') || lastUserMsg.includes('shopify') || lastUserMsg.includes('rto') || lastUserMsg.includes('cod')) {
         aiReply =
-          'MSR Next Gen ka 24/7 AI WhatsApp Agent aapke customers ke inquiries, product catalog, aur order bookings automatically handle karta hai — even when you are asleep! WhatsApp par chat karne ke liye tap karein: +91 95193 42440.';
+          'D2C brands ke liye humne D2C Anti-RTO Shield develop kiya hai (jaise Amparo ke liye 340% ROAS aur 28% RTO drop deliver kiya). Ye fake addresses filter karta hai aur Cash-on-Delivery orders ko WhatsApp par 1-click me auto-verify karta hai. Aapka store kis product category me hai?';
+      } else if (lastUserMsg.includes('restaurant') || lastUserMsg.includes('cafe') || lastUserMsg.includes('food') || lastUserMsg.includes('table') || lastUserMsg.includes('dining')) {
+        aiReply =
+          'Restaurants aur Cafes ke liye hamara SmartDine AI Agent (jaise Nacho G aur The Bunker Cafe) WhatsApp par automated table reservations aur menu sharing karta hai — bina kisi staff ke! Weekend rush me zero customers miss hote hain. Aapka cafe/restaurant kahan located hai?';
+      } else if (lastUserMsg.includes('clinic') || lastUserMsg.includes('doctor') || lastUserMsg.includes('health') || lastUserMsg.includes('hospital') || lastUserMsg.includes('patient')) {
+        aiReply =
+          'Doctors aur Clinics ke liye hamara CareSlot AI Agent 24/7 patient appointments book karta hai, token timings aur clinic GPS directions automatically WhatsApp par bhejta hai. OPD rush 60% tak smooth ho jata hai!';
+      } else if (lastUserMsg.includes('school') || lastUserMsg.includes('coaching') || lastUserMsg.includes('admission') || lastUserMsg.includes('edu')) {
+        aiReply =
+          'Schools aur Coaching Institutes (jaise Elite Futuristic School) ke liye hamara EduEnroll AI Agent parents ke fee structure, syllabus aur timings queries ko instantly solve karke verified campus visits schedule karta hai.';
+      } else if (lastUserMsg.includes('real estate') || lastUserMsg.includes('builder') || lastUserMsg.includes('property') || lastUserMsg.includes('flat') || lastUserMsg.includes('site visit')) {
+        aiReply =
+          'Real Estate builders ke liye hamara EstateMatch Agent serious buyers ka budget (2BHK/3BHK) filter karta hai, PDF brochures deliver karta hai aur sales manager ke sath direct site visits book karta hai.';
+      } else if (lastUserMsg.includes('amparo') || lastUserMsg.includes('case study') || lastUserMsg.includes('proof') || lastUserMsg.includes('result') || lastUserMsg.includes('client')) {
+        aiReply =
+          'Hamare verified results: Amparo (D2C Skincare) ne ₹2.4 Lakhs revenue 30 days me generate kiya with 3.8x ROAS aur -28% RTO drop. Nacho G restaurant ne weekend footfall me 40% jump dekha. Hum vanity metrics nahi, real revenue deliver karte hain!';
+      } else if (lastUserMsg.includes('ad') || lastUserMsg.includes('meta') || lastUserMsg.includes('facebook') || lastUserMsg.includes('instagram') || lastUserMsg.includes('google')) {
+        aiReply =
+          'MSR Next Gen Meta & Google Ads me high-converting vernacular video ads, UGC hooks aur hyper-local targeting use karta hai. Isse cost-per-lead 40% tak drop ho jata hai aur direct WhatsApp leads aati hain. Aap monthly kitna ad spend plan kar rahe hain?';
+      } else if (lastUserMsg.includes('mukul') || lastUserMsg.includes('founder') || lastUserMsg.includes('contact') || lastUserMsg.includes('phone') || lastUserMsg.includes('number')) {
+        aiReply =
+          'Aap direct MSR founder Mukul se WhatsApp par connect kar sakte hain: +91 95193 42440 (Sales & Audits) ya +91 88875 21156 (Client Desk). Hamara email hai msbestshoopingpro@gmail.com.';
+      } else if (lastUserMsg.includes('audit') || lastUserMsg.includes('free') || lastUserMsg.includes('consult')) {
+        aiReply =
+          'Bilkul! Hum aapke business ke Instagram page, website aur current ads ka ek comprehensive 15-Minute Video/WhatsApp Audit free of charge karte hain. Direct WhatsApp par start karne ke liye tap karein: +91 95193 42440.';
+      } else if (lastUserMsg.includes('whatsapp') || lastUserMsg.includes('bot') || lastUserMsg.includes('agent') || lastUserMsg.includes('demo')) {
+        aiReply =
+          'MSR Next Gen ka 24/7 AI WhatsApp Agent bina kisi human delay ke 2 second me pricing, product catalogs aur order bookings handle karta hai. Aap hamare live WhatsApp number +91 95193 42440 par message bhejkar ise abhi live test kar sakte hain!';
       } else {
         aiReply =
-          'Namaste! MSR Next Gen me aapka swagat hai. Hum Meta/Google Ads aur 24/7 AI WhatsApp bots se aapke business ke sales badhate hain. Aap kis type ke business ke liye marketing dekh rahe hain?';
+          'Namaste! MSR Next Gen me aapka swagat hai. Hum Meta/Google Ads aur 24/7 AI WhatsApp Automation se Indian businesses aur D2C brands ke sales scale karte hain. Aap kis business ke liye marketing ya AI agent explore karna chahte hain?';
       }
     }
 

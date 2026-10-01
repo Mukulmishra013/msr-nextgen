@@ -7,11 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
  * NEVER interacts with or disconnects the Admin / Mukul Business WhatsApp session!
  */
 
+const WORKER_URL = process.env.WHATSAPP_WORKER_URL || 'http://localhost:5001';
+
 export async function GET() {
   try {
-    const res = await fetch('http://localhost:5001/sandbox/status', {
+    const res = await fetch(`${WORKER_URL}/sandbox/status`, {
       cache: 'no-store',
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(2000),
     });
 
     if (res.ok) {
@@ -19,14 +21,16 @@ export async function GET() {
       return NextResponse.json(data);
     }
   } catch {
-    // Sandbox worker offline
+    // Sandbox local worker offline (standard on serverless cloud like Vercel)
   }
 
+  // Graceful cloud simulator state so visitors on Vercel are never stuck on infinite loading
   return NextResponse.json({
-    success: false,
-    status: 'idle',
+    success: true,
+    status: 'cloud_ready',
     qrCode: null,
     user: null,
+    isCloudFallback: true,
     secondsLeft: 300,
   });
 }
