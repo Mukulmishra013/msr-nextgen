@@ -237,15 +237,19 @@ async function startAdminWhatsAppSocket() {
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
         adminStatus = 'disconnected';
         adminQrCode = null;
         adminLastError = lastDisconnect?.error?.message || 'Disconnected';
 
-        console.log(`[Admin WhatsApp Closed] Status: ${statusCode}. Reconnecting: ${shouldReconnect}`);
-        if (shouldReconnect) {
-          setTimeout(startAdminWhatsAppSocket, 3000);
+        console.log(`[Admin WhatsApp Closed] Status: ${statusCode}. Reconnecting in 2.5s...`);
+        if (isLoggedOut) {
+          try {
+            fs.rmSync(ADMIN_AUTH_DIR, { recursive: true, force: true });
+            fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });
+          } catch {}
         }
+        setTimeout(startAdminWhatsAppSocket, 2500);
       } else if (connection === 'open') {
         adminStatus = 'connected';
         adminQrCode = null;
@@ -542,6 +546,9 @@ const server = http.createServer(async (req, res) => {
   // 1. ADMIN ENDPOINTS (Permanent Mukul Business WhatsApp)
   // GET /status or GET /admin/status
   if (req.method === 'GET' && (url.pathname === '/status' || url.pathname === '/admin/status')) {
+    if (adminStatus === 'disconnected' || (!adminQrCode && adminStatus !== 'connected')) {
+      startAdminWhatsAppSocket();
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
