@@ -124,22 +124,45 @@ export async function POST(req: NextRequest) {
     const groqKey = process.env.GROQ_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
 
+    const lastUserMsg = messages[messages.length - 1]?.content || '';
+    const knowledgeAnswer = getSmartAssistantAnswer(lastUserMsg, messages.length);
+
     let aiReply: string | null = null;
     let provider = 'rules';
 
-    if (groqKey) {
-      aiReply = await callGroqChat(messages, groqKey);
-      if (aiReply) provider = 'groq';
+    // 1. If it matches a specific knowledge intent (Pricing, Ads, Bots, Audits, D2C, Food, Healthcare, Real Estate), return authoritative answer instantly
+    if (knowledgeAnswer && !knowledgeAnswer.startsWith('Namaste! MSR Next Gen me aapka swagat hai')) {
+      aiReply = knowledgeAnswer;
+      provider = 'msr_knowledge_base';
+    }
+
+    // 2. Otherwise try LLM if configured
+    if (!aiReply && groqKey) {
+      const groqReply = await callGroqChat(messages, groqKey);
+      if (groqReply) {
+        const replacementCount = (groqReply.match(/\uFFFD/g) || []).length;
+        if (replacementCount <= 2 && groqReply.length > 10) {
+          aiReply = groqReply;
+          provider = 'groq';
+        }
+      }
     }
 
     if (!aiReply && geminiKey) {
-      aiReply = await callGeminiChat(messages, geminiKey);
-      if (aiReply) provider = 'gemini';
+      const geminiReply = await callGeminiChat(messages, geminiKey);
+      if (geminiReply) {
+        const replacementCount = (geminiReply.match(/\uFFFD/g) || []).length;
+        if (replacementCount <= 2 && geminiReply.length > 10) {
+          aiReply = geminiReply;
+          provider = 'gemini';
+        }
+      }
     }
 
+    // 3. Final conversational fallback
     if (!aiReply) {
-      const lastUserMsg = messages[messages.length - 1]?.content || '';
-      aiReply = getSmartAssistantAnswer(lastUserMsg, messages.length);
+      aiReply = knowledgeAnswer;
+      provider = 'msr_ai_brain';
     }
 
     return NextResponse.json({
