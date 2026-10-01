@@ -267,6 +267,7 @@ async function startAdminWhatsAppSocket() {
         isAdminStarting = false;
         adminStatus = 'connected';
         adminQrCode = null;
+        adminLastError = null;
         adminUser = adminSock.user;
         console.log(`\n[Admin WhatsApp Live!] Permanent Session Active: ${adminSock.user?.id || 'Connected'}\n`);
       }
@@ -274,9 +275,10 @@ async function startAdminWhatsAppSocket() {
 
     adminSock.ev.on('messages.upsert', async (m) => {
       try {
-        const isFromMe = Boolean(msg.key.fromMe);
-        if (!msg || !msg.message || !msg.key.remoteJid) return;
+        const msg = m.messages?.[0];
+        if (!msg || !msg.message || !msg.key?.remoteJid) return;
 
+        const isFromMe = Boolean(msg.key.fromMe);
         const text =
           msg.message.conversation ||
           msg.message.extendedTextMessage?.text ||
