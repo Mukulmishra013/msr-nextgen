@@ -2,17 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const CLOUD_WORKER_URL = process.env.WHATSAPP_WORKER_URL || 'https://msr-whatsapp-bot.onrender.com';
+const LOCAL_WORKER_URL = 'http://localhost:5001';
 const CRM_FILE = path.join(process.cwd(), 'data', 'whatsapp_sales_crm.json');
 
-export async function GET() {
-  // 1. Try to fetch live from the dual-engine WhatsApp worker
-  try {
-    const res = await fetch('http://localhost:5001/crm/conversations', {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2500),
-    });
+async function fetchFromWorker(path: string, options?: RequestInit): Promise<Response | null> {
+  const targets = [CLOUD_WORKER_URL, LOCAL_WORKER_URL];
+  for (const base of targets) {
+    try {
+      const res = await fetch(`${base}${path}`, {
+        ...options,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.ok) return res;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
 
-    if (res.ok) {
+export async function GET() {
+  // 1. Try to fetch live from the dual-engine WhatsApp worker (Render or Local)
+  try {
+    const res = await fetchFromWorker('/crm/conversations', { cache: 'no-store' });
+    if (res && res.ok) {
       const data = await res.json();
       return NextResponse.json(data);
     }
@@ -43,29 +57,33 @@ export async function POST(req: NextRequest) {
     const { action, phone, updates, message } = body;
 
     if (action === 'update_lead') {
-      const res = await fetch('http://localhost:5001/crm/update-lead', {
+      const res = await fetchFromWorker('/crm/update-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, updates }),
       });
-      const data = await res.json();
-      return NextResponse.json(data, { status: res.status });
+      if (res) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: res.status });
+      }
     }
 
     if (action === 'trigger_followup') {
-      const res = await fetch('http://localhost:5001/crm/trigger-followup', {
+      const res = await fetchFromWorker('/crm/trigger-followup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, message }),
       });
-      const data = await res.json();
-      return NextResponse.json(data, { status: res.status });
+      if (res) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: res.status });
+      }
     }
 
-    return NextResponse.json({ success: false, error: 'Invalid CRM action' }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'Worker unreachable or invalid action' }, { status: 400 });
   } catch (err: unknown) {
     return NextResponse.json(
-      { success: false, error: err instanceof Error ? err.message : 'Server error' },
+      { success: false, error: err instanceof Error ? err.message : 'CRM worker error' },
       { status: 500 }
     );
   }

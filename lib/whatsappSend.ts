@@ -26,32 +26,36 @@ export async function sendWhatsAppMessage(
   }
 
   // ---------------------------------------------------------------------------
-  // Tier 1: Try Local WhatsApp QR Linked Device Worker (Port 5001)
+  // Tier 1: Try Render Cloud / Local WhatsApp Worker (Port 5001)
   // ---------------------------------------------------------------------------
-  try {
-    const workerRes = await fetch('http://localhost:5001/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: cleanPhone, message: messageText }),
-      signal: AbortSignal.timeout(8000),
-    });
+  const targets = [
+    process.env.WHATSAPP_WORKER_URL || 'https://msr-whatsapp-bot.onrender.com',
+    'http://localhost:5001'
+  ];
 
-    if (workerRes.ok) {
-      const data = await workerRes.json();
-      if (data.success) {
-        console.log(`[WhatsApp Delivery: Linked Device] Sent to +${cleanPhone} via your connected WhatsApp!`);
-        return {
-          sent: true,
-          mode: 'linked_device',
-          messageId: data.messageId,
-        };
-      } else {
-        console.warn(`[WhatsApp Worker Warning] Failed to send: ${data.error}`);
+  for (const base of targets) {
+    try {
+      const workerRes = await fetch(`${base}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone, message: messageText }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (workerRes.ok) {
+        const data = await workerRes.json();
+        if (data.success) {
+          console.log(`[WhatsApp Delivery: Linked Device] Sent to +${cleanPhone} via ${base}!`);
+          return {
+            sent: true,
+            mode: 'linked_device',
+            messageId: data.messageId,
+          };
+        }
       }
+    } catch {
+      // try next
     }
-  } catch (err: unknown) {
-    const errMessage = err instanceof Error ? err.message : String(err);
-    console.warn(`[WhatsApp Worker Offline/Timeout] +${cleanPhone}: ${errMessage}`);
   }
 
   // ---------------------------------------------------------------------------
