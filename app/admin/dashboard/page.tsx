@@ -1273,10 +1273,33 @@ export default function AdminDashboardPage() {
                     alt="WhatsApp QR Code"
                     className="w-64 h-64 rounded-xl border-4 border-white shadow-2xl"
                   />
-                  <div className="flex items-center gap-2 mt-4 text-xs font-bold text-amber-400 animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    <span>Scan this QR code with WhatsApp on your phone</span>
-                  </div>
+                  {waStatus.lastError === 'QR refs attempts ended' ? (
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      <span className="text-xs font-semibold text-rose-400">⚠️ QR Code Expired (Timeout)</span>
+                      <button
+                        onClick={async () => {
+                          setIsRestartingAdmin(true);
+                          await fetch('/api/admin/whatsapp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'reset' }),
+                          });
+                          setTimeout(fetchWhatsAppStatus, 2000);
+                          setIsRestartingAdmin(false);
+                        }}
+                        disabled={isRestartingAdmin}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRestartingAdmin ? 'animate-spin' : ''}`} />
+                        <span>Generate Fresh QR Code</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-4 text-xs font-bold text-amber-400 animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span>Scan this QR code with WhatsApp on your phone</span>
+                    </div>
+                  )}
                 </div>
               ) : waStatus.status === 'offline' ? (
                 <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl text-center space-y-3 my-6">

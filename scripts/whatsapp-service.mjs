@@ -15,6 +15,7 @@
  */
 
 import http from 'http';
+import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -203,8 +204,11 @@ let adminLastError = null;
 const adminProcessedMsgIds = new Set();
 let isAutoReplyPaused = false;
 const lastAdminReplyPerUser = new Map();
+let isAdminStarting = false;
 
 async function startAdminWhatsAppSocket() {
+  if (isAdminStarting || adminStatus === 'connected') return;
+  isAdminStarting = true;
   adminStatus = 'initializing';
   adminQrCode = null;
 
@@ -236,21 +240,27 @@ async function startAdminWhatsAppSocket() {
       }
 
       if (connection === 'close') {
+        isAdminStarting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
         const isLoggedOut = statusCode === DisconnectReason.loggedOut;
         adminStatus = 'disconnected';
         adminQrCode = null;
         adminLastError = lastDisconnect?.error?.message || 'Disconnected';
 
-        console.log(`[Admin WhatsApp Closed] Status: ${statusCode}. Reconnecting in 2.5s...`);
+        console.log(`[Admin WhatsApp Closed] Status: ${statusCode}. Reconnecting in 3s...`);
         if (isLoggedOut) {
           try {
             fs.rmSync(ADMIN_AUTH_DIR, { recursive: true, force: true });
             fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });
           } catch {}
         }
-        setTimeout(startAdminWhatsAppSocket, 2500);
+        setTimeout(() => {
+          if (adminStatus === 'disconnected') {
+            startAdminWhatsAppSocket();
+          }
+        }, 3000);
       } else if (connection === 'open') {
+        isAdminStarting = false;
         adminStatus = 'connected';
         adminQrCode = null;
         adminUser = adminSock.user;
@@ -260,16 +270,8 @@ async function startAdminWhatsAppSocket() {
 
     adminSock.ev.on('messages.upsert', async (m) => {
       try {
-        const msg = m.messages[0];
-        if (!msg || !msg.message || msg.key.fromMe || !msg.key.remoteJid) return;
-
-        const messageId = msg.key.id;
-        if (adminProcessedMsgIds.has(messageId)) return;
-        adminProcessedMsgIds.add(messageId);
-        setTimeout(() => adminProcessedMsgIds.delete(messageId), 15 * 60 * 1000);
-
-        const senderJid = msg.key.remoteJid;
-        if (senderJid.endsWith('@g.us') || senderJid === 'status@broadcast') return;
+        const isFromMe = Boolean(msg.key.fromMe);
+        if (!msg || !msg.message || !msg.key.remoteJid) return;
 
         const text =
           msg.message.conversation ||
@@ -279,6 +281,21 @@ async function startAdminWhatsAppSocket() {
         if (!text.trim()) return;
 
         const trimmedText = text.trim();
+        if (isFromMe && !trimmedText.toLowerCase().startsWith('!test')) {
+          return;
+        }
+
+        const effectiveText = isFromMe
+          ? trimmedText.replace(/^!test\s*/i, '').trim() || 'hi'
+          : trimmedText;
+
+        const messageId = msg.key.id;
+        if (adminProcessedMsgIds.has(messageId)) return;
+        adminProcessedMsgIds.add(messageId);
+        setTimeout(() => adminProcessedMsgIds.delete(messageId), 15 * 60 * 1000);
+
+        const senderJid = msg.key.remoteJid;
+        if (senderJid.endsWith('@g.us') || senderJid === 'status@broadcast') return;
         const senderClean = senderJid.replace(/[^0-9]/g, '');
         const isOwner = senderClean.includes('9519342440') || senderClean.includes('8887521156');
         const memory = loadAgentMemory();
@@ -330,7 +347,7 @@ async function startAdminWhatsAppSocket() {
         await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
 
         // Multi-Agent Consultative Sales Mind with Memory & Hot Lead Dossier
-        const aiReply = await handleIncomingSalesMessage(senderJid, trimmedText, adminSock);
+        const aiReply = await handleIncomingSalesMessage(senderJid, effectiveText, adminSock);
         await adminSock.sendMessage(senderJid, { text: aiReply });
         console.log(`[Admin Multi-Agent Sales Replied to ${senderJid}]: "${aiReply.substring(0, 60)}..."`);
       } catch (err) {
@@ -546,7 +563,7 @@ const server = http.createServer(async (req, res) => {
   // 1. ADMIN ENDPOINTS (Permanent Mukul Business WhatsApp)
   // GET /status or GET /admin/status
   if (req.method === 'GET' && (url.pathname === '/status' || url.pathname === '/admin/status')) {
-    if (adminStatus === 'disconnected' || (!adminQrCode && adminStatus !== 'connected')) {
+    if (adminStatus === 'disconnected' && !isAdminStarting) {
       startAdminWhatsAppSocket();
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -729,7 +746,20 @@ const server = http.createServer(async (req, res) => {
 
 // Launch on Port 5001
 server.listen(PORT, () => {
-  console.log(`[Dual-Engine WhatsApp Worker] Running on http://localhost:${PORT}`);
+  console.log(`[Dual-Engine WhatsApp Worker] Running on port ${PORT}`);
   // Start Mukul's permanent business WhatsApp
   startAdminWhatsAppSocket();
+
+  // Render 24/7 Self-Keep-Alive Ping (pings itself every 8 minutes so Render free tier never sleeps)
+  const RENDER_SERVICE_URL = process.env.RENDER_EXTERNAL_URL || 'https://msr-whatsapp-bot.onrender.com';
+  setInterval(() => {
+    try {
+      const proto = RENDER_SERVICE_URL.startsWith('https') ? https : http;
+      proto.get(`${RENDER_SERVICE_URL}/status`, (res) => {
+        console.log(`[Keep-Alive Ping] Status: ${res.statusCode} at ${new Date().toLocaleTimeString('en-IN')}`);
+      }).on('error', (err) => {
+        console.log('[Keep-Alive Ping Error]:', err.message);
+      });
+    } catch {}
+  }, 8 * 60 * 1000);
 });
