@@ -67,8 +67,8 @@ export default function ScrollRocket3D() {
   if (!isVisible && !isBoosting) return null;
 
   // Calculate rocket vertical travel range on the screen
-  // Travel between 15% and 82% of the viewport height to avoid overlapping header and bottom bars
-  const topPercent = 14 + scrollProgress * 66;
+  // Travel between 15% and 80% of the viewport height to avoid overlapping header and bottom bars
+  const topPercent = 15 + scrollProgress * 64;
 
   // Rotation based on scroll direction
   // Down: Rotates 180deg (facing down, flame on top)
@@ -84,7 +84,7 @@ export default function ScrollRocket3D() {
 
   return (
     <div
-      className="fixed right-3 sm:right-6 z-40 pointer-events-none transition-opacity duration-500 hidden md:block"
+      className="fixed right-2 sm:right-6 z-40 pointer-events-none transition-opacity duration-500 block"
       style={{
         top: `${topPercent}vh`,
         transform: 'translateY(-50%)',
@@ -92,19 +92,19 @@ export default function ScrollRocket3D() {
       aria-label="3D Scroll Rocket Progress"
     >
       {/* Flight Altitude Track Indicator */}
-      <div className="absolute right-7 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-auto">
+      <div className="absolute right-6 sm:right-8 top-1/2 -translate-y-1/2 flex items-center gap-1 sm:gap-2 pointer-events-auto">
         <div
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold backdrop-blur-md border shadow-lg transition-all duration-300 ${
+          className={`flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold backdrop-blur-md border shadow-lg transition-all duration-300 ${
             isHovered || isBoosting
               ? 'bg-slate-900 text-emerald-300 border-emerald-500 scale-105'
               : 'bg-white/90 text-slate-700 border-slate-200/90 shadow-emerald-500/10'
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>{Math.round(scrollProgress * 100)}%</span>
-          <span className="text-[9px] uppercase tracking-wider text-slate-400">Orbit</span>
+          <span className="hidden sm:inline text-[9px] uppercase tracking-wider text-slate-400">Orbit</span>
         </div>
       </div>
 
@@ -114,7 +114,7 @@ export default function ScrollRocket3D() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="MSR Growth Rocket • Click to Launch to Top!"
-        className="relative group pointer-events-auto cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-400/40 rounded-full p-2 transition-transform duration-300 active:scale-95"
+        className="relative group pointer-events-auto cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-400/40 rounded-full p-1 sm:p-2 transition-transform duration-300 active:scale-95 touch-manipulation"
         style={{
           transform: `rotate(${rotationDeg}deg) scale(${isBoosting ? 1.3 : isHovered ? 1.15 : 1})`,
           transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -132,7 +132,7 @@ export default function ScrollRocket3D() {
         />
 
         {/* 3D SVG Rocket Artwork */}
-        <div className="relative w-12 h-16 sm:w-14 sm:h-20 drop-shadow-2xl">
+        <div className="relative w-10 h-14 sm:w-14 sm:h-20 drop-shadow-2xl">
           <svg
             viewBox="0 0 64 96"
             fill="none"

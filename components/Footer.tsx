@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { AGENCY_CONFIG, getWhatsAppUrl, getCustomerCareWhatsAppUrl } from '@/lib/config';
 import { trackEvent } from '@/lib/analytics';
-import { Instagram, Linkedin, Facebook, Mail, MessageCircle, PhoneCall, Lock } from 'lucide-react';
+import { Instagram, Linkedin, Facebook, Mail, MessageCircle, PhoneCall } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -89,15 +89,6 @@ export default function Footer() {
                 <a href="#about" className="hover:text-white transition-colors">
                   About the Founder
                 </a>
-              </li>
-              <li className="pt-2">
-                <Link
-                  href="/admin/login"
-                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-400 transition-colors"
-                >
-                  <Lock className="w-3 h-3" />
-                  <span>Admin Portal</span>
-                </Link>
               </li>
             </ul>
           </div>

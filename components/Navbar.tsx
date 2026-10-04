@@ -1,14 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { AGENCY_CONFIG, getWhatsAppUrl, IS_PLACEHOLDER_PHONE } from '@/lib/config';
 import { trackEvent } from '@/lib/analytics';
 import { useToast } from '@/components/Toast';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Menu, X, Bot, ChevronRight } from 'lucide-react';
 
 export default function Navbar() {
   const { showToast } = useToast();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     trackEvent('whatsapp_click', { source: 'navbar' });
@@ -26,6 +27,7 @@ export default function Navbar() {
         {/* Brand Logo & Name */}
         <Link
           href="/"
+          onClick={() => setMobileMenuOpen(false)}
           className="flex items-center gap-2.5 group focus:outline-none focus:ring-2 focus:ring-brand-600 rounded-lg"
         >
           <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white flex items-center justify-center font-black text-lg sm:text-xl shadow-sm group-hover:shadow-md transition-shadow">
@@ -69,21 +71,130 @@ export default function Navbar() {
           </a>
         </nav>
 
-        {/* Quick WhatsApp Action (Right Header) */}
-        <div className="flex items-center gap-3">
+        {/* Right Header Actions */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Quick WhatsApp Action */}
           <a
             href={getWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
           >
             <MessageCircle className="w-4 h-4 fill-white shrink-0" />
             <span className="hidden xs:inline">WhatsApp Us</span>
             <span className="xs:hidden">Chat</span>
           </a>
+
+          {/* Mobile Hamburger Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-slate-700 hover:text-brand-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-600"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
+          >
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6 text-slate-900" />
+            ) : (
+              <Menu className="w-6 h-6 text-slate-900" />
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Dropdown Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden w-full bg-white/98 backdrop-blur-xl border-b border-surface-200 shadow-xl px-4 pt-3 pb-6 animate-in slide-in-from-top-2 duration-200">
+          <nav className="flex flex-col space-y-2">
+            {/* Featured AI Agents Hub */}
+            <Link
+              href="/agents"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 border border-emerald-200 text-emerald-950 font-bold shadow-2xs hover:shadow-sm transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-extrabold text-emerald-950">AI Agents Hub</span>
+                    <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full uppercase font-black tracking-wider animate-pulse">
+                      New
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-700 font-medium">Interactive WhatsApp & voice bots</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-emerald-600" />
+            </Link>
+
+            {/* Navigation Sections */}
+            <a
+              href="/#services"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>Services</span>
+              <span className="text-xs text-slate-400 font-normal">Paid Ads & AI Bots</span>
+            </a>
+
+            <a
+              href="/#brands"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>Brands We Manage</span>
+              <span className="text-xs text-slate-400 font-normal">Social Proof</span>
+            </a>
+
+            <a
+              href="/#case-study"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>Case Study</span>
+              <span className="text-xs text-slate-400 font-normal">Amparo 3.8x ROAS</span>
+            </a>
+
+            <a
+              href="/#ai-demo"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>Live Demo</span>
+              <span className="text-xs text-slate-400 font-normal">WhatsApp Simulator</span>
+            </a>
+
+            <a
+              href="/#about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>About</span>
+              <span className="text-xs text-slate-400 font-normal">Founder & Story</span>
+            </a>
+
+            {/* Mobile Direct WhatsApp Contact Button */}
+            <div className="pt-2 border-t border-slate-100">
+              <a
+                href={getWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  handleWhatsAppClick(e);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-sm transition-all"
+              >
+                <MessageCircle className="w-4 h-4 fill-white shrink-0" />
+                <span>Talk to Mukul on WhatsApp</span>
+              </a>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
