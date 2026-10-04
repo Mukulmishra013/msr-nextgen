@@ -5,6 +5,7 @@ import { AGENCY_CONFIG, getWhatsAppUrl, IS_PLACEHOLDER_PHONE } from '@/lib/confi
 import { trackEvent } from '@/lib/analytics';
 import { useToast } from '@/components/Toast';
 import { MessageCircle, ArrowRight, ShieldCheck, Sparkles, TrendingUp } from 'lucide-react';
+import HeroVideoShowcase from '@/components/HeroVideoShowcase';
 
 export default function Hero() {
   const { showToast } = useToast();
@@ -96,8 +97,10 @@ export default function Hero() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>Trusted by growing D2C & local Indian brands • Full social media management</span>
           </div>
-
         </div>
+
+        {/* 3D Animated System Architecture Video Showcase (Loop) */}
+        <HeroVideoShowcase />
       </div>
     </section>
   );

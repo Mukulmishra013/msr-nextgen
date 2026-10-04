@@ -38,5 +38,6 @@ next-env.d.ts
 .whatsapp_auth_sandbox/
 *.log
 google-services*.json
+convert_in_to_video*.mp4
 
 .vercel
