@@ -69,8 +69,8 @@ const SCENARIOS: Scenario[] = [
       },
       {
         sender: 'ai',
-        text: 'Superb! Order #AMP-8492 confirm ho gaya hai. Kal subah dispatch hoga aur tracking link yahi WhatsApp par auto-send hoga. Thank you!',
-        tag: 'COD Order Synced to Google Sheets & CRM',
+        text: 'Superb! [Demo Simulation] Order #AMP-8492 verify ho gaya hai. (Yeh ek interactive simulation demo hai — koi real order ya payment place nahi hua hai). Real bot isi tarah live dispatch aur tracking link WhatsApp par auto-send karta hai!',
+        tag: 'Demo Simulation • CRM & Sheets Auto-Sync',
       },
     ],
     quickChips: [
@@ -101,8 +101,8 @@ const SCENARIOS: Scenario[] = [
       },
       {
         sender: 'ai',
-        text: 'Done Rahul ji! Table #04 for 4 Guests aaj sham 8:00 PM confirm ho chuki hai. Location pin & digital pass bhej diya hai. See you tonight!',
-        tag: 'Table Confirmed & Floor Manager Alerted',
+        text: 'Done Rahul ji! [Demo Reservation] Table #04 for 4 Guests aaj sham 8:00 PM confirm ho chuki hai. (Simulation demo — live bot instantly locks table in POS/Calendar & alerts manager). Location pin & digital pass attached!',
+        tag: 'Demo Simulation • Table Confirmed',
       },
     ],
     quickChips: [
@@ -133,8 +133,8 @@ const SCENARIOS: Scenario[] = [
       },
       {
         sender: 'ai',
-        text: 'Visit Confirmed! Kal 2:00 PM Senior Counselor aapse milenge. Campus GPS location aur visitor pass WhatsApp par attach ho gaya hai.',
-        tag: 'High-Value Lead Locked in Admission CRM',
+        text: '[Demo Visit Scheduled] Kal 2:00 PM Senior Counselor visit confirm ho gayi hai. (Simulation demo — real bot instantly notifies admission office & triggers SMS/WhatsApp reminder).',
+        tag: 'Demo Simulation • Admission CRM Locked',
       },
     ],
     quickChips: [
@@ -165,8 +165,8 @@ const SCENARIOS: Scenario[] = [
       },
       {
         sender: 'ai',
-        text: 'Done! Token #08 sham 5:30 PM confirm ho gaya hai. Clinic address aur booking token yaha send kar diya hai. Kripya 10 min pehle reach karein.',
-        tag: 'Slot Booked & Reception Notified',
+        text: 'Done! [Demo Appointment] Token #08 sham 5:30 PM confirm ho gaya hai. (Simulation demo — real bot auto-syncs clinic calendar & sends token/map link). Kripya 10 min pehle reach karein.',
+        tag: 'Demo Simulation • Slot Booked & Reception Notified',
       },
     ],
     quickChips: [
@@ -542,7 +542,7 @@ export default function AIAgentDemo() {
             {/* Trust Note */}
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>Official WhatsApp Cloud API & Anti-Ban Architecture strictly followed.</span>
+              <span>Official Meta Business Standards & WhatsApp Policy-Compliant Architecture strictly followed.</span>
             </div>
 
           </div>
@@ -592,13 +592,12 @@ export default function AIAgentDemo() {
                 className="bg-[#EFEAE2] p-4 sm:p-5 min-h-[380px] max-h-[440px] overflow-y-auto space-y-3.5 rounded-b-none transition-all scroll-smooth"
               >
                 
-                {/* Simulation Notice Banner */}
-                <div className="text-center my-1">
-                  <span className="bg-[#FFEECD] text-[#54656F] text-[10px] font-semibold px-2.5 py-1 rounded-md shadow-2xs inline-flex items-center gap-1">
-                    <span>🔒 Active Simulation:</span>
-                    <strong className="text-slate-800">{currentScenario.title}</strong>
-                    <span>({currentScenario.clientExample})</span>
-                  </span>
+                {/* Prominent Simulation & Demo Notice Banner */}
+                <div className="text-center my-1.5">
+                  <div className="bg-amber-100/95 border border-amber-300/80 text-amber-950 text-[10px] sm:text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-2xs inline-flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                    <span>INTERACTIVE DEMO SIMULATION • No real orders or transactions placed</span>
+                  </div>
                 </div>
 
                 {displayedMessages.map((msg) => {

@@ -69,7 +69,7 @@ const AGENTS_CATALOG: AIAgentItem[] = [
       'Natural Hindi + English (Hinglish) conversation',
       'Instant catalog & pricing distribution',
       'Zero human staff delay (even at 2:00 AM)',
-      'Official Anti-Ban & Rate-Limit protection',
+      'Official Meta Policy Compliance & Safe Rate-Limiting Protection',
     ],
     responseSpeed: '< 2.0s',
     accuracy: '99.4%',
@@ -211,7 +211,7 @@ const AGENT_CHAT_PRESETS: Record<string, { initialChat: ChatMsg[]; quickPrompts:
       { sender: 'customer', text: 'Hi, kya mera COD order #AMP-8492 confirm ho gaya hai?', time: 'Just now' },
       { sender: 'ai', text: 'Namaste Rahul ji! 🙏 Yes, aapka Cash on Delivery order receive hua hai. Fake delivery prevent karne ke liye please confirm karein: Kya aapka address Flat 402, Sector 14, Noida hai? (Reply 1 to Confirm, 2 to Cancel).', time: 'Just now', tag: 'Anti-RTO Shield Active' },
       { sender: 'customer', text: 'Ha 1 confirm hai', time: 'Just now' },
-      { sender: 'ai', text: 'Superb! Order #AMP-8492 verify ho gaya hai. Dispatch tracking link yahi WhatsApp par auto-send hoga. Agar abhi UPI se pay karte hain to ₹50 instant cashback milega!', time: 'Just now', tag: 'Verified & Synced' },
+      { sender: 'ai', text: 'Superb! [Demo Simulation] Order #AMP-8492 verify ho gaya hai. (Notice: Yeh interactive demo simulation hai — koi real order place nahi hua hai). Real bot is tarah live dispatch tracking link WhatsApp par auto-send karta hai!', time: 'Just now', tag: 'Demo Verified & Synced' },
     ],
     quickPrompts: ['Delivery kitne din me hogi?', 'Address change karna hai', 'Prepaid payment discount link bhej do'],
   },
@@ -801,13 +801,13 @@ export default function AgentsDirectoryPage() {
             </div>
 
             {/* Test Phone Banner */}
-            <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center justify-between text-[11px] text-emerald-900">
-              <span className="flex items-center gap-1 font-semibold">
-                <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Live Interactive Simulation — Type any question or tap prompts below</span>
+            <div className="bg-amber-50 border-b border-amber-200/90 px-4 py-2 flex items-center justify-between text-[11px] text-amber-950">
+              <span className="flex items-center gap-1.5 font-bold">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span>Interactive Simulation Demo — No actual orders or transactions are placed</span>
               </span>
-              <span className="text-[10px] font-black uppercase bg-emerald-200/80 px-2 py-0.5 rounded-md text-emerald-900 shrink-0">
-                100% Free Test
+              <span className="text-[10px] font-black uppercase bg-amber-200/90 px-2 py-0.5 rounded-md text-amber-950 shrink-0">
+                Sandbox Demo
               </span>
             </div>
 
