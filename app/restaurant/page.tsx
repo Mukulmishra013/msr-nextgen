@@ -220,7 +220,7 @@ export default function RestaurantMenuPage() {
   };
 
   // Submit Customer Onboarding (Frictionless)
-  const handleSaveGuestProfile = (nameToSave?: string) => {
+  const handleSaveGuestProfile = async (nameToSave?: string) => {
     const finalName = (nameToSave || customerName || 'Valued Guest').trim();
     setCustomerName(finalName);
     setIsOnboardingDone(true);
@@ -230,6 +230,21 @@ export default function RestaurantMenuPage() {
       localStorage.setItem('msr_restaurant_guest_name', finalName);
       if (customerPhone) localStorage.setItem('msr_restaurant_guest_phone', customerPhone);
       if (customerBirthday) localStorage.setItem('msr_restaurant_guest_bday', customerBirthday);
+    } catch {}
+
+    // Immediately sync to backend CRM so Admin Dashboard reflects the visitor in real-time
+    try {
+      fetch('/api/restaurant/loyalty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register_guest',
+          name: finalName,
+          phone: customerPhone,
+          birthday: customerBirthday,
+          table: tableNumber,
+        }),
+      }).catch(() => {});
     } catch {}
 
     setAiSpeech(
@@ -575,7 +590,7 @@ export default function RestaurantMenuPage() {
       {/* ========================================================================= */}
       {/* 3D ANIMATED HOLOGRAPHIC AI POPUP CONCIERGE (CHEF MAYA)                     */}
       {/* ========================================================================= */}
-      <div className="fixed bottom-4 left-4 z-40 max-w-sm">
+      <div className={`fixed ${cartTotalQty > 0 ? 'bottom-20' : 'bottom-4'} left-4 z-40 max-w-[calc(100vw-32px)] sm:max-w-sm transition-all duration-300`}>
         {/* Expanded Speech Bubble */}
         {aiAssistantOpen && (
           <div className="bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 rounded-3xl p-4 shadow-2xl mb-3 animate-in slide-in-from-bottom-3 duration-300 relative">
@@ -942,10 +957,25 @@ export default function RestaurantMenuPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (customerBirthday) {
+                  if (customerBirthday || customerPhone) {
                     try {
-                      localStorage.setItem('msr_restaurant_guest_bday', customerBirthday);
+                      if (customerBirthday) localStorage.setItem('msr_restaurant_guest_bday', customerBirthday);
                       if (customerPhone) localStorage.setItem('msr_restaurant_guest_phone', customerPhone);
+                    } catch {}
+
+                    // Instantly sync to backend CRM
+                    try {
+                      fetch('/api/restaurant/loyalty', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          action: 'register_guest',
+                          name: customerName || 'Valued Guest',
+                          phone: customerPhone,
+                          birthday: customerBirthday,
+                          table: tableNumber,
+                        }),
+                      }).catch(() => {});
                     } catch {}
                   }
                   setShowBirthdayPassModal(false);
@@ -1154,6 +1184,31 @@ export default function RestaurantMenuPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MOBILE STICKY BOTTOM CHECKOUT STRIP                                       */}
+      {/* ========================================================================= */}
+      {cartTotalQty > 0 && !isCartOpen && (
+        <div className="fixed bottom-0 inset-x-0 z-30 sm:hidden bg-slate-900/95 backdrop-blur-xl border-t border-emerald-500/30 p-3.5 flex items-center justify-between shadow-2xl animate-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-xs shadow-md shadow-emerald-500/20">
+              {cartTotalQty}
+            </div>
+            <div>
+              <div className="text-sm font-black text-white">₹{grandTotal}</div>
+              <div className="text-[10px] text-emerald-400 font-semibold">{tableNumber} • Ready to Order</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCartOpen(true)}
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>View Table Order</span>
+          </button>
         </div>
       )}
     </div>

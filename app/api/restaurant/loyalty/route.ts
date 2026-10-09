@@ -1,39 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import {
+  getRestaurantData,
+  registerOrUpdateGuest,
+  sendBirthdayWish,
+} from '@/lib/restaurantStore';
 
-const LOYALTY_FILE = path.resolve(process.cwd(), 'data/restaurant-loyalty.json');
 const WORKER_URL = process.env.WHATSAPP_WORKER_URL || 'https://msr-whatsapp-bot.onrender.com';
 
-function loadLoyaltyData() {
-  try {
-    if (fs.existsSync(LOYALTY_FILE)) {
-      return JSON.parse(fs.readFileSync(LOYALTY_FILE, 'utf-8'));
-    }
-  } catch {}
-  return { orders: [], customers: [] };
-}
-
-function saveLoyaltyData(data: any) {
-  try {
-    fs.writeFileSync(LOYALTY_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch {}
-}
-
 export async function GET() {
-  const data = loadLoyaltyData();
-  return NextResponse.json({ success: true, ...data });
+  try {
+    const data = await getRestaurantData();
+    return NextResponse.json({ success: true, ...data });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, customerId } = body;
+    const { action } = body;
 
-    const db = loadLoyaltyData();
+    // 1. Guest Registration on Menu Visit / Birthday Pass
+    if (action === 'register_guest') {
+      const { name, phone, birthday, table } = body;
+      if (!name && !phone) {
+        return NextResponse.json({ success: false, error: 'Name or phone required' }, { status: 400 });
+      }
 
+      const customer = await registerOrUpdateGuest({
+        name: name || 'Valued Guest',
+        phone,
+        birthday,
+        table,
+      });
+
+      return NextResponse.json({ success: true, customer });
+    }
+
+    // 2. Send Birthday Greeting Voucher
     if (action === 'send_birthday_wish') {
-      const customer = db.customers.find((c: any) => c.id === customerId);
+      const { customerId } = body;
+      const data = await getRestaurantData();
+      const customer = data.customers.find((c) => c.id === customerId);
+
       if (!customer) {
         return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
       }
@@ -51,19 +61,19 @@ Table reserve karne ke liye bas yaha *"Book Birthday Table"* reply karein, hum V
 ━━━━━━━━━━━━━━━━━━━━
 The Grand Bistro • Craft Kitchen`;
 
-      // Dispatch via WhatsApp worker
-      try {
-        await fetch(`${WORKER_URL}/restaurant/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: customer.phone, message: wishMessage }),
-          signal: AbortSignal.timeout(3000),
-        }).catch(() => {});
-      } catch {}
+      // Dispatch via WhatsApp worker if phone available
+      if (customer.phone && customer.phone.length >= 10) {
+        try {
+          await fetch(`${WORKER_URL}/restaurant/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: customer.phone, message: wishMessage }),
+            signal: AbortSignal.timeout(3500),
+          }).catch(() => {});
+        } catch {}
+      }
 
-      customer.birthdayWishSent = true;
-      saveLoyaltyData(db);
-
+      await sendBirthdayWish(customerId);
       const whatsappUrl = `https://wa.me/${customer.phone}?text=${encodeURIComponent(wishMessage)}`;
 
       return NextResponse.json({

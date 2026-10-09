@@ -35,6 +35,7 @@ import {
   Gift,
   Calendar,
   ShoppingBag,
+  ChefHat,
 } from 'lucide-react';
 
 export interface CrmLeadItem {
@@ -180,12 +181,36 @@ export default function AdminDashboardPage() {
   const [sendingWishId, setSendingWishId] = useState<string | null>(null);
   const [wishNotification, setWishNotification] = useState<{ id: string; msg: string; url?: string } | null>(null);
 
+  // Manager & Chef WhatsApp Routing Settings
+  const [restaurantSettings, setRestaurantSettings] = useState<{
+    managerPhone: string;
+    chefPhone: string;
+    restaurantName: string;
+    sendToManager: boolean;
+    sendToChef: boolean;
+  }>({
+    managerPhone: '919519342440',
+    chefPhone: '919519342440',
+    restaurantName: 'The Grand Bistro',
+    sendToManager: true,
+    sendToChef: true,
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSuccessMsg, setSettingsSuccessMsg] = useState<string | null>(null);
+  const [isPingingSettings, setIsPingingSettings] = useState(false);
+
+  // Quick Add Walk-In Guest Modal State
+  const [showAddGuestModal, setShowAddGuestModal] = useState(false);
+  const [newGuestData, setNewGuestData] = useState({ name: '', phone: '', birthday: '', table: 'Table 1' });
+  const [isAddingGuest, setIsAddingGuest] = useState(false);
+
   const fetchRestaurantData = async () => {
     setLoadingRestaurant(true);
     try {
-      const [loyaltyRes, waRes] = await Promise.all([
+      const [loyaltyRes, waRes, settingsRes] = await Promise.all([
         fetch('/api/restaurant/loyalty', { cache: 'no-store' }),
         fetch('/api/restaurant/whatsapp', { cache: 'no-store' }),
+        fetch('/api/restaurant/settings', { cache: 'no-store' }),
       ]);
       if (loyaltyRes.ok) {
         const lData = await loyaltyRes.json();
@@ -196,10 +221,83 @@ export default function AdminDashboardPage() {
         const wData = await waRes.json();
         setRestaurantWaStatus(wData);
       }
+      if (settingsRes.ok) {
+        const sData = await settingsRes.json();
+        if (sData.settings) setRestaurantSettings(sData.settings);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingRestaurant(false);
+    }
+  };
+
+  const handleSaveRestaurantSettings = async () => {
+    setIsSavingSettings(true);
+    setSettingsSuccessMsg(null);
+    try {
+      const res = await fetch('/api/restaurant/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(restaurantSettings),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRestaurantSettings(data.settings);
+        setSettingsSuccessMsg('✓ Manager aur Chef numbers save ho gaye! Ab orders inhi numbers par aayenge.');
+        setTimeout(() => setSettingsSuccessMsg(null), 5000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleTestPingRestaurantSettings = async () => {
+    setIsPingingSettings(true);
+    setSettingsSuccessMsg(null);
+    try {
+      const res = await fetch('/api/restaurant/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test_ping' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSettingsSuccessMsg(data.message || '✓ Test alert dispatched via WhatsApp!');
+        setTimeout(() => setSettingsSuccessMsg(null), 5000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsPingingSettings(false);
+    }
+  };
+
+  const handleQuickAddGuest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGuestData.name && !newGuestData.phone) return;
+    setIsAddingGuest(true);
+    try {
+      const res = await fetch('/api/restaurant/loyalty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register_guest',
+          ...newGuestData,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowAddGuestModal(false);
+        setNewGuestData({ name: '', phone: '', birthday: '', table: 'Table 1' });
+        await fetchRestaurantData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingGuest(false);
     }
   };
 
@@ -620,10 +718,10 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="flex border-b border-slate-800 gap-2 overflow-x-auto pb-1">
+      <div className="flex border-b border-slate-800 gap-1.5 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
         <button
           onClick={() => setActiveTab('leads')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'leads'
               ? 'bg-slate-900 text-brand-400 border-t-2 border-brand-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -635,7 +733,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('whatsapp_crm')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'whatsapp_crm'
               ? 'bg-slate-900 text-emerald-400 border-t-2 border-emerald-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -656,7 +754,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('whatsapp_qr')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'whatsapp_qr'
               ? 'bg-slate-900 text-brand-400 border-t-2 border-brand-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -671,7 +769,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('restaurant')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'restaurant'
               ? 'bg-slate-900 text-amber-400 border-t-2 border-amber-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -692,7 +790,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('brands')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'brands'
               ? 'bg-slate-900 text-brand-400 border-t-2 border-brand-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -704,7 +802,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('case_study')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'case_study'
               ? 'bg-slate-900 text-brand-400 border-t-2 border-brand-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -716,7 +814,7 @@ export default function AdminDashboardPage() {
 
         <button
           onClick={() => setActiveTab('digest')}
-          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
             activeTab === 'digest'
               ? 'bg-slate-900 text-brand-400 border-t-2 border-brand-500 border-x border-slate-800'
               : 'text-slate-400 hover:text-white'
@@ -1698,7 +1796,118 @@ export default function AdminDashboardPage() {
             
             {/* Left Column: Dedicated Restaurant WhatsApp QR & Birthday Retention CRM */}
             <div className="lg:col-span-5 space-y-8">
-              
+
+              {/* Card 0: Kitchen & Manager WhatsApp Routing Numbers */}
+              <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <ChefHat className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white">Kitchen & Manager Routing</h3>
+                      <p className="text-xs text-slate-400">Order alerts recipient WhatsApp numbers</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                    Live Routing
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl text-xs text-slate-300 mb-5 leading-relaxed">
+                  Jab bhi customer table par khana order karega, AI agent turant in WhatsApp numbers par automated kitchen ticket send karega.
+                </div>
+
+                {settingsSuccessMsg && (
+                  <div className="mb-4 p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{settingsSuccessMsg}</span>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* Manager Phone */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Manager WhatsApp Number:</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={restaurantSettings.sendToManager}
+                          onChange={(e) => setRestaurantSettings({ ...restaurantSettings, sendToManager: e.target.checked })}
+                          className="rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span>Send Alert</span>
+                      </label>
+                    </div>
+                    <input
+                      type="tel"
+                      value={restaurantSettings.managerPhone}
+                      onChange={(e) => setRestaurantSettings({ ...restaurantSettings, managerPhone: e.target.value })}
+                      placeholder="e.g. 919519342440 (with country code)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Receives floor alerts & table billing summaries.</span>
+                  </div>
+
+                  {/* Chef / Kitchen Phone */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Head Chef / Kitchen WhatsApp:</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={restaurantSettings.sendToChef}
+                          onChange={(e) => setRestaurantSettings({ ...restaurantSettings, sendToChef: e.target.checked })}
+                          className="rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span>Send Alert</span>
+                      </label>
+                    </div>
+                    <input
+                      type="tel"
+                      value={restaurantSettings.chefPhone}
+                      onChange={(e) => setRestaurantSettings({ ...restaurantSettings, chefPhone: e.target.value })}
+                      placeholder="e.g. 919519342440"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Receives instant cooking tickets & special cooking instructions.</span>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSaveRestaurantSettings}
+                      disabled={isSavingSettings}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingSettings ? 'Saving...' : 'Save Routing Numbers'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTestPingRestaurantSettings}
+                      disabled={isPingingSettings}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700"
+                      title="Send test WhatsApp alert"
+                    >
+                      <Send className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{isPingingSettings ? 'Pinging...' : 'Test Ping'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Card 1: Restaurant WhatsApp Linked Device */}
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-4">
@@ -1834,10 +2043,72 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-slate-400">Re-engage guests with Free Lava Cake + 15% OFF</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-                    VIP Offers
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddGuestModal(!showAddGuestModal)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3 h-3 text-emerald-400" />
+                      <span>{showAddGuestModal ? 'Cancel' : 'Add Guest'}</span>
+                    </button>
+                    <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+                      VIP Offers
+                    </span>
+                  </div>
                 </div>
+
+                {showAddGuestModal && (
+                  <form onSubmit={handleQuickAddGuest} className="mb-4 p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                    <div className="text-xs font-black text-white flex items-center justify-between">
+                      <span>Quick Add Table / Walk-in Guest</span>
+                      <button type="button" onClick={() => setShowAddGuestModal(false)} className="text-slate-500 hover:text-white">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Guest Name *"
+                        value={newGuestData.name}
+                        onChange={(e) => setNewGuestData({ ...newGuestData, name: e.target.value })}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="WhatsApp Phone (e.g. 9519342440)"
+                        value={newGuestData.phone}
+                        onChange={(e) => setNewGuestData({ ...newGuestData, phone: e.target.value })}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Birthday (DD-MM, e.g. 15-10)"
+                        value={newGuestData.birthday}
+                        onChange={(e) => setNewGuestData({ ...newGuestData, birthday: e.target.value })}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Table (e.g. Table 4)"
+                        value={newGuestData.table}
+                        onChange={(e) => setNewGuestData({ ...newGuestData, table: e.target.value })}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isAddingGuest}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isAddingGuest ? 'Saving Guest Profile...' : 'Save Guest Profile'}</span>
+                    </button>
+                  </form>
+                )}
 
                 {wishNotification && (
                   <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs text-emerald-300 flex items-center justify-between">
@@ -2028,13 +2299,35 @@ export default function AdminDashboardPage() {
                         </div>
 
                         {/* Total & Action */}
-                        <div className="flex items-center justify-between pt-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                           <div className="text-xs text-slate-400">
                             Subtotal: <strong className="text-base text-emerald-400 font-black">₹{ord.subtotal}</strong>
                           </div>
 
-                          <div className="text-[11px] text-slate-500">
-                            WhatsApp confirmation auto-dispatched to guest ✅
+                          <div className="flex flex-wrap items-center gap-2">
+                            {restaurantSettings.chefPhone && (
+                              <a
+                                href={`https://wa.me/${restaurantSettings.chefPhone}?text=${encodeURIComponent(`👨‍🍳 KITCHEN TICKET: Order #${ord.id} for Table ${ord.table} (${ord.customerName}). Items: ${ord.items?.map((i: any) => `${i.qty}x ${i.name}`).join(', ')}. Note: ${ord.specialNote || 'None'}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[11px] flex items-center gap-1 transition-colors"
+                              >
+                                <ChefHat className="w-3 h-3 text-amber-400" />
+                                <span>Send to Chef</span>
+                              </a>
+                            )}
+
+                            {restaurantSettings.managerPhone && (
+                              <a
+                                href={`https://wa.me/${restaurantSettings.managerPhone}?text=${encodeURIComponent(`📋 FLOOR ALERT: Order #${ord.id} placed on Table ${ord.table} for ₹${ord.subtotal} (${ord.customerName} - +${ord.phone})`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] flex items-center gap-1 transition-colors"
+                              >
+                                <Smartphone className="w-3 h-3 text-emerald-400" />
+                                <span>Alert Manager</span>
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>

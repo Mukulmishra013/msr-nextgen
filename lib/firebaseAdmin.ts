@@ -14,7 +14,7 @@ let devCaseStudyStats: CaseStudyStat[] = [...CASE_STUDY_AMPARO.stats];
 
 let appInstance: App | null = null;
 
-function getFirebaseAdminApp(): App | null {
+export function getFirebaseAdminApp(): App | null {
   if (appInstance) return appInstance;
 
   const currentApps = getApps();

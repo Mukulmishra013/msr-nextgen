@@ -1,145 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { saveRestaurantOrder, getRestaurantSettings } from '@/lib/restaurantStore';
 
-const LOYALTY_FILE = path.resolve(process.cwd(), 'data/restaurant-loyalty.json');
 const WORKER_URL = process.env.WHATSAPP_WORKER_URL || 'https://msr-whatsapp-bot.onrender.com';
-const MANAGER_PHONE = '919519342440';
-
-function loadLoyaltyData() {
-  try {
-    if (fs.existsSync(LOYALTY_FILE)) {
-      return JSON.parse(fs.readFileSync(LOYALTY_FILE, 'utf-8'));
-    }
-  } catch {}
-  return { orders: [], customers: [] };
-}
-
-function saveLoyaltyData(data: any) {
-  try {
-    fs.writeFileSync(LOYALTY_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch {}
-}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { customerName, phone, table, items, subtotal, specialNote, birthday } = body;
 
-    if (!customerName || !phone || !items || items.length === 0) {
+    if (!customerName || !items || items.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Name, phone and at least 1 item are required' },
+        { success: false, error: 'Customer name and at least 1 item are required' },
         { status: 400 }
       );
     }
 
-    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-    const orderId = `GB-${Math.floor(100 + Math.random() * 900)}`;
-    const now = new Date().toISOString();
+    const cleanPhone = phone ? String(phone).replace(/[^0-9]/g, '') : '';
+    const finalPhone = cleanPhone.length >= 10 ? cleanPhone : '919519342440'; // Fallback demo number if skip mode
 
-    const newOrder = {
-      id: orderId,
+    // Save order & update customer profile in persistent store
+    const { order, customer } = await saveRestaurantOrder({
       customerName: customerName.trim(),
-      phone: cleanPhone,
-      table: table || 'Table 1',
+      phone: finalPhone,
+      table: table || 'Table 4',
       items,
       subtotal: Number(subtotal) || 0,
-      status: 'Kitchen Preparing',
-      createdAt: now,
       specialNote: specialNote || '',
-    };
+      birthday: birthday || '',
+    });
 
-    const db = loadLoyaltyData();
-    db.orders.unshift(newOrder);
-
-    // Update or insert customer loyalty profile
-    let customer = db.customers.find((c: any) => c.phone.includes(cleanPhone.slice(-10)));
-    if (customer) {
-      customer.name = customerName.trim();
-      customer.totalVisits = (customer.totalVisits || 1) + 1;
-      customer.totalSpent = (customer.totalSpent || 0) + Number(subtotal);
-      customer.lastVisit = now.split('T')[0];
-      if (birthday) customer.birthday = birthday;
-      if (items[0]?.name) customer.favoriteDish = items[0].name;
-    } else {
-      customer = {
-        id: `cust-${Date.now()}`,
-        name: customerName.trim(),
-        phone: cleanPhone,
-        birthday: birthday || '15-10',
-        birthdayDisplay: birthday ? `${birthday} (Saved)` : '15 Oct',
-        favoriteDish: items[0]?.name || 'Signature Special',
-        totalVisits: 1,
-        totalSpent: Number(subtotal),
-        lastVisit: now.split('T')[0],
-        birthdayWishSent: false,
-        status: 'New Guest',
-      };
-      db.customers.push(customer);
-    }
-
-    saveLoyaltyData(db);
+    // Fetch live Manager & Chef routing settings
+    const settings = await getRestaurantSettings();
 
     // Formulate Order Confirmation Message for Customer
     const itemsList = items
       .map((it: any) => `• ${it.qty}x ${it.name} (₹${it.price * it.qty})`)
       .join('\n');
 
-    const customerMessage = `🍽️ *THE GRAND BISTRO • ORDER CONFIRMED!*
+    const customerMessage = `🍽️ *${settings.restaurantName.toUpperCase()} • ORDER CONFIRMED!*
 ━━━━━━━━━━━━━━━━━━━━
 Namaste *${customerName}* ji! 🙏
-Aapka order receive ho gaya hai:
+Aapka table order kitchen ko bhej diya gaya hai:
 
-*Order ID*: #${orderId}
-*Table*: ${table || 'Table 1'}
+*Order ID*: #${order.id}
+*Table*: ${order.table}
 ${itemsList}
 
-💰 *Total Amount*: ₹${subtotal}
-${specialNote ? `📝 *Special Request*: "${specialNote}"\n` : ''}
-👨‍🍳 *Status*: *Humne restaurant manager aur head chef ko aapka order bhej diya hai!*
-Aapka fresh khana 15-20 minutes me aapki table par serve hoga.
+💰 *Total Amount*: ₹${order.subtotal}
+${order.specialNote ? `📝 *Special Request*: "${order.specialNote}"\n` : ''}
+👨‍🍳 *Status*: *Kitchen Preparing (15-20 mins)*
+Humne head chef aur floor manager ko notify kar diya hai!
 
 Bon Appétit & Enjoy your meal! ✨
 ━━━━━━━━━━━━━━━━━━━━
-The Grand Bistro Craft Kitchen`;
+${settings.restaurantName} • Craft Kitchen`;
 
-    // Formulate Kitchen Ticket for Manager
-    const managerMessage = `🚨 *NEW TABLE ORDER RECEIVED!*
+    // Formulate Kitchen & Manager Ticket
+    const kitchenTicket = `🚨 *NEW TABLE ORDER RECEIVED!*
 ━━━━━━━━━━━━━━━━━━━━
-📍 *${table || 'Table 1'}*
-👤 *Guest*: ${customerName} (+${cleanPhone})
-🆔 *Order*: #${orderId}
+📍 *${order.table}*
+👤 *Guest*: ${customerName} (+${finalPhone})
+🆔 *Order ID*: #${order.id}
 ${itemsList}
 
-💵 *Total*: ₹${subtotal}
-📝 *Notes*: ${specialNote || 'Standard'}
-⏰ *Received*: ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`;
+💵 *Total*: ₹${order.subtotal}
+📝 *Notes*: ${order.specialNote || 'None'}
+⏰ *Received*: ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+━━━━━━━━━━━━━━━━━━━━
+Kitchen Order Ticket • Automated POS`;
 
-    // Try sending live WhatsApp message via Worker
-    try {
-      await fetch(`${WORKER_URL}/restaurant/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone, message: customerMessage }),
-        signal: AbortSignal.timeout(3000),
-      }).catch(() => {});
+    // Dispatch WhatsApp via Worker to Customer, Manager, and Chef
+    const dispatchPromises: Promise<any>[] = [];
 
-      await fetch(`${WORKER_URL}/restaurant/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: MANAGER_PHONE, message: managerMessage }),
-        signal: AbortSignal.timeout(3000),
-      }).catch(() => {});
-    } catch {}
+    // 1. Send to Customer if valid 10-digit number
+    if (finalPhone && finalPhone.length >= 10) {
+      dispatchPromises.push(
+        fetch(`${WORKER_URL}/restaurant/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: finalPhone, message: customerMessage }),
+          signal: AbortSignal.timeout(3500),
+        }).catch(() => {})
+      );
+    }
+
+    // 2. Send to Manager if enabled
+    if (settings.sendToManager && settings.managerPhone) {
+      dispatchPromises.push(
+        fetch(`${WORKER_URL}/restaurant/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: settings.managerPhone, message: kitchenTicket }),
+          signal: AbortSignal.timeout(3500),
+        }).catch(() => {})
+      );
+    }
+
+    // 3. Send to Chef if enabled (and different from manager)
+    if (settings.sendToChef && settings.chefPhone && settings.chefPhone !== settings.managerPhone) {
+      dispatchPromises.push(
+        fetch(`${WORKER_URL}/restaurant/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: settings.chefPhone, message: kitchenTicket }),
+          signal: AbortSignal.timeout(3500),
+        }).catch(() => {})
+      );
+    }
+
+    // Await with graceful timeout
+    await Promise.allSettled(dispatchPromises);
 
     // Fallback Direct WhatsApp Click-to-Chat URL
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(customerMessage)}`;
+    const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(customerMessage)}`;
+    const managerWhatsappUrl = `https://wa.me/${settings.managerPhone}?text=${encodeURIComponent(kitchenTicket)}`;
 
     return NextResponse.json({
       success: true,
-      order: newOrder,
+      order,
+      customer,
       message: customerMessage,
       whatsappUrl,
+      managerWhatsappUrl,
     });
   } catch (err: any) {
     return NextResponse.json(
