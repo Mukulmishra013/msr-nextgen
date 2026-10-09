@@ -677,6 +677,14 @@ async function startRestaurantWhatsAppSocket() {
             fs.rmSync(RESTAURANT_AUTH_DIR, { recursive: true, force: true });
             fs.mkdirSync(RESTAURANT_AUTH_DIR, { recursive: true });
           } catch {}
+        } else {
+          // If session closed due to connection drop/restart, auto-reconnect
+          setTimeout(() => {
+            if (restaurantStatus === 'disconnected' || restaurantStatus === 'idle') {
+              console.log('[Restaurant Socket] Attempting auto-reconnect...');
+              startRestaurantWhatsAppSocket();
+            }
+          }, 3500);
         }
       } else if (connection === 'open') {
         isRestaurantStarting = false;
@@ -1005,6 +1013,12 @@ server.listen(PORT, () => {
   console.log(`[Tri-Engine WhatsApp Worker] Running on port ${PORT}`);
   // Start Mukul's permanent business WhatsApp
   startAdminWhatsAppSocket();
+
+  // If Restaurant session was already paired, auto-start socket immediately
+  if (fs.existsSync(RESTAURANT_AUTH_DIR) && fs.existsSync(path.join(RESTAURANT_AUTH_DIR, 'creds.json'))) {
+    console.log('[Restaurant Socket] Existing session found. Auto-starting...');
+    startRestaurantWhatsAppSocket();
+  }
 
   // Render 24/7 Self-Keep-Alive Ping (pings itself every 8 minutes so Render free tier never sleeps)
   const RENDER_SERVICE_URL = process.env.RENDER_EXTERNAL_URL || 'https://msr-whatsapp-bot.onrender.com';

@@ -2042,25 +2042,43 @@ export default function AdminDashboardPage() {
                         <p className="text-xs text-slate-400 mt-1">
                           Click below to generate a fresh QR code and link your restaurant phone.
                         </p>
+                        {restaurantWaStatus.lastError && (
+                          <div className="mt-2 text-[11px] text-amber-400/90 bg-amber-950/30 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">
+                            ℹ️ Status: {restaurantWaStatus.lastError}
+                          </div>
+                        )}
                       </div>
 
-                      <button
-                        onClick={handleStartRestaurantWhatsApp}
-                        disabled={isStartingRestaurantWa}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black hover:bg-amber-400 transition-all shadow-md shadow-amber-500/20"
-                      >
-                        {isStartingRestaurantWa ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Generating QR Code...</span>
-                          </>
-                        ) : (
-                          <>
-                            <QrCode className="w-4 h-4" />
-                            <span>Generate Pairing QR Code</span>
-                          </>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={handleStartRestaurantWhatsApp}
+                          disabled={isStartingRestaurantWa}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black hover:bg-amber-400 transition-all shadow-md shadow-amber-500/20"
+                        >
+                          {isStartingRestaurantWa ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Generating QR Code...</span>
+                            </>
+                          ) : (
+                            <>
+                              <QrCode className="w-4 h-4" />
+                              <span>Generate Pairing QR Code</span>
+                            </>
+                          )}
+                        </button>
+                        {restaurantWaStatus.lastError && (
+                          <button
+                            onClick={handleDisconnectRestaurantWhatsApp}
+                            disabled={isDisconnectingRestaurantWa}
+                            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all border border-slate-700"
+                            title="Reset session and generate clean QR"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Reset Session</span>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     </div>
                   )}
                 </div>
