@@ -489,3 +489,82 @@ export async function handleIncomingSalesMessage(senderJid, text, sock) {
 
   return reply;
 }
+
+// =============================================================================
+// AGENT 5: 100% AUTONOMOUS CRON FOLLOW-UP & NURTURE BRAIN
+// =============================================================================
+export async function processAutomatedFollowUps(sock) {
+  if (!sock) return { processed: 0, sent: 0 };
+  loadCrmDatabase();
+
+  const now = Date.now();
+  const leads = Object.values(crmDatabase);
+  let sentCount = 0;
+
+  for (const lead of leads) {
+    // Skip if lead is already closed or opted out
+    if (lead.stage === 'closed_won' || lead.stage === 'opted_out') continue;
+
+    const lastActive = lead.lastActive || 0;
+    const hoursSinceActive = (now - lastActive) / (1000 * 60 * 60);
+
+    // Initial follow-up counters
+    if (!lead.followUpCount) lead.followUpCount = 0;
+    if (!lead.lastFollowUpAt) lead.lastFollowUpAt = 0;
+
+    const hoursSinceLastFollowUp = (now - lead.lastFollowUpAt) / (1000 * 60 * 60);
+
+    // Only follow up during business hours (9:30 AM to 8:30 PM IST)
+    const istHour = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getHours();
+    if (istHour < 9 || istHour >= 21) continue;
+
+    // RULE 1: First Follow-Up (Lead went silent for 2 to 24 hours after discovery/qualifying)
+    if (lead.followUpCount === 0 && hoursSinceActive >= 2 && hoursSinceActive <= 48) {
+      let nudge = '';
+      if (lead.category && lead.category !== 'Unclassified') {
+        nudge = `Namaste ${lead.name || 'ji'}! Humne ${lead.category} brands ke liye latest Meta ad hooks check kiye the. Kya aap aaj 10 minute ka free strategy audit schedule karna chahenge?`;
+      } else {
+        nudge = `Namaste ${lead.name || 'ji'}! Maya here from MSR Next Gen. Kya aapke business ke ads ya WhatsApp automation par koi query thi jisme hum help kar sakein?`;
+      }
+
+      try {
+        const jid = `${lead.phone}@s.whatsapp.net`;
+        await sock.sendMessage(jid, { text: nudge });
+        lead.history.push({
+          sender: 'ai',
+          text: `[Auto Follow-Up 1]: ${nudge}`,
+          timestamp: now,
+        });
+        lead.followUpCount = 1;
+        lead.lastFollowUpAt = now;
+        lead.stage = 'follow_up_active';
+        sentCount++;
+        console.log(`[Auto Follow-Up #1 Sent to ${lead.phone}]`);
+      } catch (err) {
+        console.error(`[Follow-Up Error for ${lead.phone}]:`, err.message);
+      }
+    }
+    // RULE 2: Second Follow-Up (48+ hours later with Social Proof case study)
+    else if (lead.followUpCount === 1 && hoursSinceLastFollowUp >= 48 && hoursSinceLastFollowUp <= 120) {
+      const caseProof = `Ek quick update ${lead.name || 'ji'}: Hamare client Amparo D2C ne pichle 30 dino me WhatsApp AI verification se 28% fake COD orders khatam kiye hain aur 3.8x ROAS reach kiya hai. Aapke brand ke liye bhi similar setup 48 ghante me live ho sakta hai. Call plan karein?`;
+      try {
+        const jid = `${lead.phone}@s.whatsapp.net`;
+        await sock.sendMessage(jid, { text: caseProof });
+        lead.history.push({
+          sender: 'ai',
+          text: `[Auto Follow-Up 2]: ${caseProof}`,
+          timestamp: now,
+        });
+        lead.followUpCount = 2;
+        lead.lastFollowUpAt = now;
+        sentCount++;
+        console.log(`[Auto Follow-Up #2 Sent to ${lead.phone}]`);
+      } catch (err) {
+        console.error(`[Follow-Up #2 Error for ${lead.phone}]:`, err.message);
+      }
+    }
+  }
+
+  saveCrmDatabase();
+  return { processed: leads.length, sent: sentCount };
+}

@@ -9,15 +9,23 @@ import HeroVideoShowcase from '@/components/HeroVideoShowcase';
 
 export default function Hero() {
   const { showToast } = useToast();
+  const heroWaUrl = getWhatsAppUrl('Hi MSR Next Gen, I would like to grow my business with Meta Ads & WhatsApp AI.');
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     trackEvent('whatsapp_click', { source: 'hero' });
     if (IS_PLACEHOLDER_PHONE) {
       showToast({
         message: 'Dev Notice: WhatsApp number is currently set to placeholder (+910000000000). Replace with real number in .env or lib/config.ts',
         type: 'warning',
       });
+      return;
     }
+    try {
+      if (typeof window !== 'undefined' && !e.defaultPrevented) {
+        window.open(heroWaUrl, '_blank');
+        e.preventDefault();
+      }
+    } catch {}
   };
 
   const handleSeeWorkClick = () => {

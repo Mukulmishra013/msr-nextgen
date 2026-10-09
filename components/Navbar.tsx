@@ -10,6 +10,7 @@ import { MessageCircle, Menu, X, Bot, ChevronRight } from 'lucide-react';
 export default function Navbar() {
   const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navbarWaUrl = getWhatsAppUrl('Hi MSR Next Gen, I want to explore high-converting Ads and 24/7 AI WhatsApp automation.');
 
   const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     trackEvent('whatsapp_click', { source: 'navbar' });
@@ -18,7 +19,14 @@ export default function Navbar() {
         message: 'Dev Notice: WhatsApp number is currently set to placeholder (+910000000000). Replace with real number in .env or lib/config.ts',
         type: 'warning',
       });
+      return;
     }
+    try {
+      if (typeof window !== 'undefined' && !e.defaultPrevented) {
+        window.open(navbarWaUrl, '_blank');
+        e.preventDefault();
+      }
+    } catch {}
   };
 
   return (
@@ -84,11 +92,11 @@ export default function Navbar() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Quick WhatsApp Action */}
           <a
-            href={getWhatsAppUrl()}
+            href={navbarWaUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 cursor-pointer"
           >
             <MessageCircle className="w-4 h-4 fill-white shrink-0" />
             <span className="hidden xs:inline">WhatsApp Us</span>
@@ -211,14 +219,14 @@ export default function Navbar() {
             {/* Mobile Direct WhatsApp Contact Button */}
             <div className="pt-2 border-t border-slate-100">
               <a
-                href={getWhatsAppUrl()}
+                href={navbarWaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   handleWhatsAppClick(e);
                   setMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-sm transition-all"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-sm transition-all cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4 fill-white shrink-0" />
                 <span>Talk to Mukul on WhatsApp</span>

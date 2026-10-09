@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { LeadRecord, BrandClient, CaseStudyStat } from '@/types';
 import { getOneClickWhatsAppUrl } from '@/lib/whatsappSend';
@@ -196,6 +196,7 @@ export default function AdminDashboardPage() {
     sendToChef: true,
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const isEditingSettingsRef = useRef(false);
   const [settingsSuccessMsg, setSettingsSuccessMsg] = useState<string | null>(null);
   const [isPingingSettings, setIsPingingSettings] = useState(false);
 
@@ -223,7 +224,13 @@ export default function AdminDashboardPage() {
       }
       if (settingsRes.ok) {
         const sData = await settingsRes.json();
-        if (sData.settings) setRestaurantSettings(sData.settings);
+        if (sData.settings) {
+          // Only sync from server if user is not currently editing or saving
+          setRestaurantSettings((prev) => {
+            if (isEditingSettingsRef.current) return prev;
+            return sData.settings;
+          });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -243,6 +250,7 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
+        isEditingSettingsRef.current = false;
         setRestaurantSettings(data.settings);
         setSettingsSuccessMsg('✓ Manager aur Chef numbers save ho gaye! Ab orders inhi numbers par aayenge.');
         setTimeout(() => setSettingsSuccessMsg(null), 5000);
@@ -1874,7 +1882,10 @@ export default function AdminDashboardPage() {
                         <input
                           type="checkbox"
                           checked={restaurantSettings.sendToManager}
-                          onChange={(e) => setRestaurantSettings({ ...restaurantSettings, sendToManager: e.target.checked })}
+                          onChange={(e) => {
+                            isEditingSettingsRef.current = true;
+                            setRestaurantSettings({ ...restaurantSettings, sendToManager: e.target.checked });
+                          }}
                           className="rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500"
                         />
                         <span>Send Alert</span>
@@ -1883,7 +1894,11 @@ export default function AdminDashboardPage() {
                     <input
                       type="tel"
                       value={restaurantSettings.managerPhone}
-                      onChange={(e) => setRestaurantSettings({ ...restaurantSettings, managerPhone: e.target.value })}
+                      onFocus={() => { isEditingSettingsRef.current = true; }}
+                      onChange={(e) => {
+                        isEditingSettingsRef.current = true;
+                        setRestaurantSettings({ ...restaurantSettings, managerPhone: e.target.value });
+                      }}
                       placeholder="e.g. 919519342440 (with country code)"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                     />
@@ -1901,7 +1916,10 @@ export default function AdminDashboardPage() {
                         <input
                           type="checkbox"
                           checked={restaurantSettings.sendToChef}
-                          onChange={(e) => setRestaurantSettings({ ...restaurantSettings, sendToChef: e.target.checked })}
+                          onChange={(e) => {
+                            isEditingSettingsRef.current = true;
+                            setRestaurantSettings({ ...restaurantSettings, sendToChef: e.target.checked });
+                          }}
                           className="rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500"
                         />
                         <span>Send Alert</span>
@@ -1910,7 +1928,11 @@ export default function AdminDashboardPage() {
                     <input
                       type="tel"
                       value={restaurantSettings.chefPhone}
-                      onChange={(e) => setRestaurantSettings({ ...restaurantSettings, chefPhone: e.target.value })}
+                      onFocus={() => { isEditingSettingsRef.current = true; }}
+                      onChange={(e) => {
+                        isEditingSettingsRef.current = true;
+                        setRestaurantSettings({ ...restaurantSettings, chefPhone: e.target.value });
+                      }}
                       placeholder="e.g. 919519342440"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                     />

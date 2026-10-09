@@ -19,14 +19,23 @@ export default function FinalCTA() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleWhatsAppFinalClick = () => {
+  const finalWaUrl = getWhatsAppUrl('Hi MSR Next Gen, I would like to explore your ads and AI agent services for my business.');
+
+  const handleWhatsAppFinalClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     trackEvent('whatsapp_click', { source: 'final_cta' });
     if (IS_PLACEHOLDER_PHONE) {
       showToast({
         message: 'Dev Notice: WhatsApp number is currently set to placeholder (+910000000000). Replace with real number in .env or lib/config.ts',
         type: 'warning',
       });
+      return;
     }
+    try {
+      if (typeof window !== 'undefined' && !e.defaultPrevented) {
+        window.open(finalWaUrl, '_blank');
+        e.preventDefault();
+      }
+    } catch {}
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,11 +128,11 @@ export default function FinalCTA() {
 
             <div>
               <a
-                href={getWhatsAppUrl('Hi MSR Next Gen, I would like to explore your ads and AI agent services for my business.')}
+                href={finalWaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsAppFinalClick}
-                className="w-full inline-flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-lg sm:text-xl px-8 py-4.5 rounded-2xl shadow-lg hover:shadow-emerald-500/25 active:scale-95 transition-all"
+                className="w-full inline-flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-lg sm:text-xl px-8 py-4.5 rounded-2xl shadow-lg hover:shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer"
               >
                 <MessageCircle className="w-6 h-6 fill-slate-950 shrink-0" />
                 <span>WhatsApp Us Now</span>

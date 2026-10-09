@@ -9,14 +9,24 @@ import { MessageCircle } from 'lucide-react';
 export default function StickyWhatsApp() {
   const { showToast } = useToast();
 
-  const handleWhatsAppClick = () => {
+  const whatsappHref = getWhatsAppUrl('Hi MSR Next Gen, I would like to chat about growing my business.');
+
+  const handleWhatsAppClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     trackEvent('whatsapp_click', { source: 'sticky_button' });
     if (IS_PLACEHOLDER_PHONE) {
       showToast({
         message: 'Dev Notice: WhatsApp number is currently set to placeholder (+910000000000). Replace with real number in .env or lib/config.ts',
         type: 'warning',
       });
+      return;
     }
+    // Cross-browser reliability check: if standard target _blank is blocked by popup blockers
+    try {
+      if (typeof window !== 'undefined' && !e.defaultPrevented) {
+        window.open(whatsappHref, '_blank');
+        e.preventDefault();
+      }
+    } catch {}
   };
 
   return (
@@ -25,12 +35,12 @@ export default function StickyWhatsApp() {
       className="fixed bottom-safe right-4 sm:right-6 z-50 pointer-events-auto"
     >
       <a
-        href={getWhatsAppUrl('Hi MSR Next Gen, I would like to chat about growing my business.')}
+        href={whatsappHref}
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleWhatsAppClick}
         aria-label="Chat on WhatsApp"
-        className="group relative flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white p-3.5 sm:px-4 sm:py-3.5 rounded-full shadow-2xl hover:shadow-[#25D366]/40 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[#25D366]/40"
+        className="group relative flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white p-3.5 sm:px-4 sm:py-3.5 rounded-full shadow-2xl hover:shadow-[#25D366]/40 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-[#25D366]/40 cursor-pointer"
       >
         {/* Subtle Pulse Ring */}
         <span className="absolute -inset-1 rounded-full bg-[#25D366]/30 animate-ping pointer-events-none opacity-75" />

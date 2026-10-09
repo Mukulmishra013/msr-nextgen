@@ -30,6 +30,7 @@ import {
   handleIncomingSalesMessage,
   getAllCrmLeads,
   updateLeadRecord,
+  processAutomatedFollowUps,
 } from './whatsappSalesEngine.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1032,4 +1033,93 @@ server.listen(PORT, () => {
       });
     } catch {}
   }, 8 * 60 * 1000);
+
+  // ===========================================================================
+  // 100% AUTONOMOUS CRON 1: AGENCY LEADS FOLLOW-UP & NURTURE BRAIN (Every 30 Mins)
+  // Runs entirely on auto-pilot without human intervention!
+  // ===========================================================================
+  setInterval(async () => {
+    try {
+      if (adminSock && adminStatus === 'connected') {
+        const result = await processAutomatedFollowUps(adminSock);
+        if (result?.sent > 0) {
+          console.log(`[Autonomous Cron]: Followed up with ${result.sent} lead(s) automatically.`);
+        }
+      }
+    } catch (err) {
+      console.error('[Autonomous Follow-Up Cron Error]:', err.message);
+    }
+  }, 30 * 60 * 1000);
+
+  // ===========================================================================
+  // 100% AUTONOMOUS CRON 2: RESTAURANT BIRTHDAY RE-ENGAGEMENT BRAIN (Hourly Check)
+  // Dispatches free lava cake vouchers automatically on customer birthdays!
+  // ===========================================================================
+  const sentBirthdaysToday = new Set();
+  let lastCheckedDay = new Date().getDate();
+
+  setInterval(async () => {
+    try {
+      const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const currentDay = nowIST.getDate();
+      const currentHour = nowIST.getHours();
+
+      // Reset daily tracker at midnight IST
+      if (currentDay !== lastCheckedDay) {
+        sentBirthdaysToday.clear();
+        lastCheckedDay = currentDay;
+      }
+
+      // Send birthday vouchers between 10:00 AM and 6:00 PM IST
+      if (currentHour < 10 || currentHour >= 18) return;
+
+      const activeSock = (restaurantSock && restaurantStatus === 'connected') ? restaurantSock : adminSock;
+      if (!activeSock) return;
+
+      const currentDayStr = String(currentDay).padStart(2, '0');
+      const currentMonthStr = String(nowIST.getMonth() + 1).padStart(2, '0');
+      const todayBirthdayKey = `${currentDayStr}-${currentMonthStr}`; // e.g. "09-10"
+
+      const loyaltyFile = path.resolve(process.cwd(), 'data/restaurant-loyalty.json');
+      if (fs.existsSync(loyaltyFile)) {
+        const loyaltyData = JSON.parse(fs.readFileSync(loyaltyFile, 'utf8'));
+        const customers = loyaltyData.customers || [];
+
+        for (const cust of customers) {
+          if (!cust.phone || cust.phone.length < 10) continue;
+          if (cust.birthday === todayBirthdayKey && !sentBirthdaysToday.has(cust.id)) {
+            let cleanPhone = cust.phone.replace(/[^0-9]/g, '');
+            if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+            const bdayWish = `🎂 *HAPPY BIRTHDAY ${cust.name?.toUpperCase() || 'VALUED GUEST'} JI!* 🎉
+━━━━━━━━━━━━━━━━━━━━
+The Grand Bistro family ki taraf se aapko janamdin ki dher saari shubhkaamnayein! 🎁
+
+Aapke Birthday celebration ko grand banane ke liye hamare Chef ki taraf se ek special gift:
+✨ *1 Complimentary Signature Belgian Chocolate Lava Cake (₹249 Free)*
+✨ *Flat 15% OFF on your entire celebration bill*
+
+Aap apni family aur dosto ke sath kab aana chahenge? 
+Bas yaha *"Book Birthday Table"* reply karein, hum VIP table ready rakhenge! 🥂
+━━━━━━━━━━━━━━━━━━━━
+The Grand Bistro • Craft Kitchen`;
+
+            try {
+              const jid = `${cleanPhone}@s.whatsapp.net`;
+              await activeSock.sendMessage(jid, { text: bdayWish });
+              sentBirthdaysToday.add(cust.id);
+              cust.birthdayWishSent = true;
+              cust.status = 'Birthday Wish Sent Today';
+              fs.writeFileSync(loyaltyFile, JSON.stringify(loyaltyData, null, 2), 'utf8');
+              console.log(`[Autonomous Birthday Wish Dispatched]: Sent to ${cust.name} (+${cleanPhone})`);
+            } catch (bdayErr) {
+              console.error(`[Birthday Auto-Dispatch Error for ${cust.name}]:`, bdayErr.message);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Autonomous Birthday Cron Error]:', err.message);
+    }
+  }, 45 * 60 * 1000); // Check every 45 minutes
 });
