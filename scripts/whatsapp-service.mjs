@@ -30,6 +30,11 @@ import {
   handleIncomingSalesMessage,
   getAllCrmLeads,
   updateLeadRecord,
+  deleteLeadRecord,
+  confirmClientMeetingSlot,
+  resolveLidToPhone,
+  isOwnerNumber,
+  cleanPhoneNumber,
   processAutomatedFollowUps,
 } from './whatsappSalesEngine.mjs';
 
@@ -240,6 +245,63 @@ let isAutoReplyPaused = false;
 const lastAdminReplyPerUser = new Map();
 let isAdminStarting = false;
 
+// Sequential FIFO Outgoing Message Queue with anti-ban humanized pacing
+const adminOutboundQueue = [];
+let isProcessingAdminQueue = false;
+let lastAdminOutboundTimestamp = 0;
+
+export async function enqueueAdminMessage(sock, jid, messageContent, options = {}) {
+  return new Promise((resolve, reject) => {
+    adminOutboundQueue.push({ sock, jid, messageContent, options, resolve, reject });
+    processAdminOutboundQueue();
+  });
+}
+
+async function processAdminOutboundQueue() {
+  if (isProcessingAdminQueue || adminOutboundQueue.length === 0) return;
+  isProcessingAdminQueue = true;
+
+  while (adminOutboundQueue.length > 0) {
+    const item = adminOutboundQueue.shift();
+    try {
+      const activeSock = item.sock || adminSock;
+      if (!activeSock) {
+        item.reject(new Error('Admin WhatsApp socket inactive'));
+        continue;
+      }
+
+      // 1. Maintain safe gap between outgoing messages (3.5s - 5.5s)
+      const now = Date.now();
+      const elapsed = now - lastAdminOutboundTimestamp;
+      const minInterval = 3500 + Math.floor(Math.random() * 2000);
+      if (elapsed < minInterval) {
+        await new Promise((r) => setTimeout(r, minInterval - elapsed));
+      }
+
+      // 2. Human typing indicator (2.5s - 4.5s)
+      try {
+        await activeSock.sendPresenceUpdate('composing', item.jid);
+      } catch {}
+      const typingTime = 2500 + Math.floor(Math.random() * 2000);
+      await new Promise((r) => setTimeout(r, typingTime));
+
+      try {
+        await activeSock.sendPresenceUpdate('paused', item.jid);
+      } catch {}
+
+      // 3. Dispatch message
+      const res = await activeSock.sendMessage(item.jid, item.messageContent, item.options);
+      lastAdminOutboundTimestamp = Date.now();
+      item.resolve(res);
+    } catch (err) {
+      console.error('[Admin Outbound Queue Error]:', err.message);
+      item.reject(err);
+    }
+  }
+
+  isProcessingAdminQueue = false;
+}
+
 async function startAdminWhatsAppSocket() {
   if (isAdminStarting || adminStatus === 'connected') return;
   isAdminStarting = true;
@@ -337,29 +399,63 @@ async function startAdminWhatsAppSocket() {
 
         const senderJid = msg.key.remoteJid;
         if (senderJid.endsWith('@g.us') || senderJid === 'status@broadcast') return;
-        const senderClean = senderJid.replace(/[^0-9]/g, '');
-        const isOwner = senderClean.includes('9519342440') || senderClean.includes('8887521156');
+
+        // Resolve LID to real phone number if Baileys received an LID remoteJid
+        let resolvedPhone = senderJid.split('@')[0];
+        if (senderJid.endsWith('@lid')) {
+          const part = msg.key.participant || msg.participant;
+          if (part && !part.endsWith('@lid')) {
+            resolvedPhone = part.split('@')[0];
+          } else {
+            resolvedPhone = resolveLidToPhone(resolvedPhone, ADMIN_AUTH_DIR);
+          }
+        }
+
+        const senderClean = cleanPhoneNumber(resolvedPhone);
+        const isOwner = isOwnerNumber(senderClean) || isOwnerNumber(resolvedPhone);
         const memory = loadAgentMemory();
+
+        // OWNER COMMAND: !slot <Client Phone> <Date & Time>
+        if (isOwner && trimmedText.startsWith('!slot')) {
+          const slotMatch = trimmedText.match(/^!slot\s+(\+?\d[\d\s-]{8,15})\s+(.+)$/i);
+          if (!slotMatch) {
+            await enqueueAdminMessage(adminSock, senderJid, {
+              text: `⚠️ *Format Galat Hai!*\n\nSahi format:\n*!slot <Customer Phone> <Date & Time>*\n\nExample:\n!slot 9519342440 Kal shaam 5:00 PM`,
+            });
+            return;
+          }
+
+          const targetRawPhone = slotMatch[1];
+          const slotDetails = slotMatch[2].trim();
+          const result = await confirmClientMeetingSlot(targetRawPhone, slotDetails, adminSock);
+          await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
+          return;
+        }
 
         if (isOwner && trimmedText.startsWith('!learn')) {
           const fact = trimmedText.replace(/^!learn\s*/i, '').trim();
           if (fact) {
             memory.learnedFacts.push(fact);
             saveAgentMemory(memory);
-            await adminSock.sendMessage(senderJid, { text: `✅ *Learned & Saved!* "${fact}"` });
+            await enqueueAdminMessage(adminSock, senderJid, { text: `✅ *Learned & Saved!* "${fact}"` });
             return;
           }
         }
 
         if (isOwner && trimmedText === '!pause') {
           isAutoReplyPaused = true;
-          await adminSock.sendMessage(senderJid, { text: '⏸️ *AI Auto-Reply Paused.*' });
+          await enqueueAdminMessage(adminSock, senderJid, { text: '⏸️ *AI Auto-Reply Paused.*' });
           return;
         }
 
         if (isOwner && trimmedText === '!resume') {
           isAutoReplyPaused = false;
-          await adminSock.sendMessage(senderJid, { text: '▶️ *AI Auto-Reply Resumed.*' });
+          await enqueueAdminMessage(adminSock, senderJid, { text: '▶️ *AI Auto-Reply Resumed.*' });
+          return;
+        }
+
+        // If sender is Mukul (Owner), do not treat as lead
+        if (isOwner) {
           return;
         }
 
@@ -369,7 +465,7 @@ async function startAdminWhatsAppSocket() {
         if (trimmedText.toLowerCase() === 'stop' || trimmedText.toLowerCase() === 'mat bhejo') {
           memory.optedOutNumbers.push(senderClean);
           saveAgentMemory(memory);
-          await adminSock.sendMessage(senderJid, {
+          await enqueueAdminMessage(adminSock, senderJid, {
             text: 'Aapka opt-out request save ho gaya hai. Thank you!',
           });
           return;
@@ -377,19 +473,21 @@ async function startAdminWhatsAppSocket() {
 
         const now = Date.now();
         const lastReplied = lastAdminReplyPerUser.get(senderJid) || 0;
-        if (now - lastReplied < 3000) return;
+        if (now - lastReplied < 4000) return;
         lastAdminReplyPerUser.set(senderJid, now);
 
         try {
           await adminSock.readMessages([msg.key]);
-          await adminSock.sendPresenceUpdate('composing', senderJid);
         } catch {}
 
-        await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
-
         // Multi-Agent Consultative Sales Mind with Memory & Hot Lead Dossier
-        const aiReply = await handleIncomingSalesMessage(senderJid, effectiveText, adminSock);
-        await adminSock.sendMessage(senderJid, { text: aiReply });
+        const contactInfo = {
+          pushName: msg.pushName || '',
+          participant: msg.key.participant || msg.participant || '',
+        };
+
+        const aiReply = await handleIncomingSalesMessage(senderJid, effectiveText, adminSock, contactInfo);
+        await enqueueAdminMessage(adminSock, senderJid, { text: aiReply });
         console.log(`[Admin Multi-Agent Sales Replied to ${senderJid}]: "${aiReply.substring(0, 60)}..."`);
       } catch (err) {
         console.error('[Admin Message Handling Error]:', err);
@@ -964,6 +1062,29 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /crm/delete-lead - Delete spam or bogus lead from CRM
+  if (req.method === 'POST' && url.pathname === '/crm/delete-lead') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      try {
+        const { phone } = JSON.parse(body);
+        if (!phone) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Phone number is required' }));
+          return;
+        }
+        const deleted = deleteLeadRecord(phone);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, deleted, phone }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /crm/trigger-followup - Send AI follow-up message to lead
   if (req.method === 'POST' && url.pathname === '/crm/trigger-followup') {
     let body = '';
@@ -981,7 +1102,7 @@ const server = http.createServer(async (req, res) => {
         if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
         const jid = `${cleanPhone}@s.whatsapp.net`;
 
-        const sent = await adminSock.sendMessage(jid, { text: message });
+        const sent = await enqueueAdminMessage(adminSock, jid, { text: message });
 
         // Record follow-up in customer history
         updateLeadRecord(cleanPhone, {
@@ -997,7 +1118,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, messageId: sent.key.id, to: cleanPhone }));
+        res.end(JSON.stringify({ success: true, messageId: sent?.key?.id || 'sent', to: cleanPhone }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));

@@ -140,6 +140,24 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleDeleteCrmLead = async (phone: string) => {
+    if (!window.confirm(`Kya aap lead (+${phone}) ko delete karna chahte hain?`)) return;
+    try {
+      const res = await fetch('/api/admin/whatsapp/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_lead', phone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (selectedCrmLead?.phone === phone) setSelectedCrmLead(null);
+        fetchCrmLeads();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleSendCrmFollowup = async (phone: string, text: string) => {
     if (!text.trim()) return;
     setSendingCrmFollowup(true);
@@ -1276,6 +1294,15 @@ export default function AdminDashboardPage() {
                               <MessageCircle className="w-3.5 h-3.5 fill-white" />
                               <span>Open Chat</span>
                             </a>
+
+                            <button
+                              onClick={() => handleDeleteCrmLead(lead.phone)}
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-rose-950/30 hover:bg-rose-900/50 text-rose-300 rounded-lg text-xs font-semibold transition-colors border border-rose-800/40"
+                              title="Delete Lead"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Lead</span>
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1321,6 +1348,14 @@ export default function AdminDashboardPage() {
                       <MessageCircle className="w-3.5 h-3.5 fill-white" />
                       <span>Chat on Phone</span>
                     </a>
+                    <button
+                      onClick={() => handleDeleteCrmLead(selectedCrmLead.phone)}
+                      className="inline-flex items-center gap-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/50 font-bold py-1.5 px-3 rounded-xl text-xs transition-colors"
+                      title="Delete Lead"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
                     <button
                       onClick={() => setSelectedCrmLead(null)}
                       className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"

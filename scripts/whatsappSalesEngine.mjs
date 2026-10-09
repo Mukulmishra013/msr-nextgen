@@ -64,6 +64,18 @@ function saveCrmDatabase() {
 
 loadCrmDatabase();
 
+// Check if phone belongs to Mukul (Owner)
+export function isOwnerNumber(phone) {
+  const clean = String(phone || '').replace(/[^0-9]/g, '');
+  return (
+    clean === MUKUL_PRIMARY_ALERT_PHONE ||
+    clean === MUKUL_BACKUP_ALERT_PHONE ||
+    clean.endsWith('8887521156') ||
+    clean.endsWith('9519342440') ||
+    clean === '33032778027137'
+  );
+}
+
 // Clean phone helper
 export function cleanPhoneNumber(phone) {
   let clean = String(phone || '').replace(/[^0-9]/g, '');
@@ -71,9 +83,43 @@ export function cleanPhoneNumber(phone) {
   return clean;
 }
 
+// Resolve WhatsApp LID to real phone number using Baileys auth reverse mapping
+const ADMIN_AUTH_DIR = path.join(process.cwd(), '.whatsapp_auth');
+export function resolveLidToPhone(lidOrPhone, authDir = ADMIN_AUTH_DIR) {
+  const clean = String(lidOrPhone || '').replace(/[^0-9]/g, '');
+  if (!clean) return clean;
+  if (clean === '33032778027137') return MUKUL_PRIMARY_ALERT_PHONE;
+  if (clean.length === 10) return '91' + clean;
+  if (clean.length >= 11 && clean.length <= 13) return clean;
+
+  if (clean.length > 13) {
+    try {
+      const reverseFile = path.join(authDir, `lid-mapping-${clean}_reverse.json`);
+      if (fs.existsSync(reverseFile)) {
+        const mapped = JSON.parse(fs.readFileSync(reverseFile, 'utf8'));
+        const mappedClean = String(mapped || '').replace(/[^0-9]/g, '');
+        if (mappedClean) {
+          if (mappedClean.length === 10) return '91' + mappedClean;
+          return mappedClean;
+        }
+      }
+    } catch {}
+  }
+  return clean;
+}
+
 // Get or initialize customer record
 export function getOrCreateCustomerRecord(phone, pushName = '') {
   const cleanPhone = cleanPhoneNumber(phone);
+  if (isOwnerNumber(cleanPhone)) {
+    return {
+      phone: cleanPhone,
+      name: 'Mukul Mishra (Owner)',
+      isOwner: true,
+      history: [],
+    };
+  }
+
   if (!crmDatabase[cleanPhone]) {
     crmDatabase[cleanPhone] = {
       phone: cleanPhone,
@@ -85,6 +131,7 @@ export function getOrCreateCustomerRecord(phone, pushName = '') {
       websiteUrl: '',
       auditFindings: '',
       stage: 'discovery',
+      meetingState: 'none',
       psychologyNotes: 'New inbound lead. Needs discovery.',
       history: [],
       lastActive: Date.now(),
@@ -102,7 +149,9 @@ export function getOrCreateCustomerRecord(phone, pushName = '') {
 // Export all records for Admin CRM table
 export function getAllCrmLeads() {
   loadCrmDatabase();
-  return Object.values(crmDatabase).sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
+  return Object.values(crmDatabase)
+    .filter((l) => !isOwnerNumber(l.phone))
+    .sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
 }
 
 // Update specific lead from Admin Dashboard
@@ -116,6 +165,29 @@ export function updateLeadRecord(phone, updates) {
   };
   saveCrmDatabase();
   return crmDatabase[cleanPhone];
+}
+
+// Delete specific lead from CRM (e.g. spam or bogus LID leads)
+export function deleteLeadRecord(phone) {
+  loadCrmDatabase();
+  const cleanPhone = cleanPhoneNumber(phone);
+  const rawPhone = String(phone || '').replace(/[^0-9]/g, '');
+
+  let deleted = false;
+  if (crmDatabase[cleanPhone]) {
+    delete crmDatabase[cleanPhone];
+    deleted = true;
+  }
+  if (rawPhone && crmDatabase[rawPhone]) {
+    delete crmDatabase[rawPhone];
+    deleted = true;
+  }
+
+  if (deleted) {
+    saveCrmDatabase();
+    return true;
+  }
+  return false;
 }
 
 // =============================================================================
@@ -148,6 +220,53 @@ export function performInstantAudit(linkInfo, category = 'General') {
 2. Checkout drop-off rokne ke liye automated WhatsApp abandoned cart recovery & COD confirmation zaroori hai.`;
 }
 
+// Robust financial budget extractor (prevents false positives like "3", "2" from single digit text)
+export function extractBudget(text) {
+  if (!text) return null;
+  // 1. Explicit keyword with amount: "budget 25k", "spend around 50,000", "monthly spend ₹40000"
+  const keywordMatch = text.match(/(?:budget|spend|kharch|mahine ka|investment)\s*(?:hai|h|rehta hai|approx|around|is|of)?\s*(?:₹|rs\.?|inr)?\s*(\d[\d,]*(?:\s*(?:k|lakh|thousand|cr|crore))?)/i);
+  if (keywordMatch && keywordMatch[1]) {
+    const rawVal = keywordMatch[1].trim();
+    if (!/^\d{1,2}$/.test(rawVal)) {
+      return keywordMatch[0].trim();
+    }
+  }
+
+  // 2. Explicit currency symbol: "₹50,000", "Rs 20k", "INR 35000"
+  const currencyMatch = text.match(/(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\s*(?:k|lakh|thousand|cr|crore))?)/i);
+  if (currencyMatch && currencyMatch[1]) {
+    const rawVal = currencyMatch[1].trim();
+    if (!/^\d{1,2}$/.test(rawVal)) {
+      return currencyMatch[0].trim();
+    }
+  }
+
+  // 3. Obvious amount with unit: "25k", "1.5 lakh", "50k"
+  const unitMatch = text.match(/\b(\d+(?:\.\d+)?\s*(?:k|lakh|thousand|cr|crore))\b/i);
+  if (unitMatch && unitMatch[1]) {
+    return unitMatch[1].trim();
+  }
+
+  // 4. Large number alone (>= 4 digits): e.g. "50000", "20,000"
+  const largeNumMatch = text.match(/\b([1-9]\d{3,}[\d,]*)\b/);
+  if (largeNumMatch && largeNumMatch[1]) {
+    return `₹${largeNumMatch[1]}`;
+  }
+
+  return null;
+}
+
+// Meeting Intent Detector
+export function isMeetingIntent(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return (
+    /(?:call|meeting|baat|connect|audit|slot)\s*(?:karo|karni|karein|schedule|book|fix|time|kab|chahiye|hoga|karna)/i.test(t) ||
+    /(?:free 15-minute|growth audit|1-on-1|zoom|google meet)/i.test(t) ||
+    /(?:aaj call|kal call|kab baat|phone call|call plan)/i.test(t)
+  );
+}
+
 // =============================================================================
 // AGENT 2: SALES PSYCHOLOGIST & INTENT ANALYZER
 // =============================================================================
@@ -167,10 +286,19 @@ export function analyzeCustomerIntent(customer, incomingText) {
     customer.category = 'Real Estate';
   }
 
-  // Detect Budget / Spend
-  const budgetMatch = text.match(/(?:budget|spend|kharch|mahine ka)?\s*(?:₹|rs\.?|inr)?\s*(\d+[\d,]*\s*(?:k|lakh|thousand)?)/i);
-  if (budgetMatch && !customer.budget) {
-    customer.budget = budgetMatch[0].trim();
+  // Detect Business Name if explicitly stated
+  const bizNameMatch = incomingText.match(/(?:brand|business|company|clinic|cafe|restaurant|store|shop)\s*(?:ka\s*naam\s*|name\s*is\s*|is\s*|hai\s*)?[:\-]?\s*([A-Za-z0-9\s&]{3,25})/i);
+  if (bizNameMatch && !customer.businessName) {
+    const candidate = bizNameMatch[1].trim();
+    if (!['kya', 'hai', 'nhi', 'nahi', 'yes', 'no', 'aur'].includes(candidate.toLowerCase())) {
+      customer.businessName = candidate;
+    }
+  }
+
+  // Detect Budget / Spend with hardened extractor
+  const parsedBudget = extractBudget(incomingText);
+  if (parsedBudget && !customer.budget) {
+    customer.budget = parsedBudget;
   }
 
   // Detect Core Pain Points
@@ -192,18 +320,10 @@ export function analyzeCustomerIntent(customer, incomingText) {
     customer.stage = 'audited';
   }
 
-  // Detect Buying Signals & Advance Funnel Stage
-  const isHotSignal =
-    text.includes('price') ||
-    text.includes('charges') ||
-    text.includes('package') ||
-    text.includes('start kaise') ||
-    text.includes('call schedule') ||
-    text.includes('meeting') ||
-    text.includes('call me') ||
-    text.includes('baat karni');
-
-  if (isHotSignal) {
+  // Advance Funnel Stage
+  if (isMeetingIntent(incomingText)) {
+    customer.stage = 'meeting_requested';
+  } else if (customer.budget) {
     customer.stage = 'hot_ready_to_close';
   } else if (customer.businessName && customer.category && customer.category !== 'Unclassified') {
     if (customer.stage === 'discovery') customer.stage = 'qualifying';
@@ -384,7 +504,12 @@ SPECIAL RESTAURANT & CAFE SALES EXPERTISE (Ground from our Complete Profile & Pa
   * Share the link SMARTLY: ONLY when a restaurant/cafe owner specifically asks for "packages", "pricing", "quotation", "brochure", "profile", "services list", or asks "kya kya service dete ho detail me bhejo".
   * When sharing, say: "Humne restaurants aur cafes ke liye complete system PDF ready ki hai, aap yahan review kar sakte hain: https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf — isme Starter, Growth aur Premium sabhi packages detailed hain."
 7. If the user writes random characters, gibberish (e.g. 'xyz', 'test', 'asdf'), do NOT assume or claim anything was booked; politely ask how you can help their business.
-8. End with ONE thoughtful discovery question to understand their business.`;
+8. End with ONE thoughtful discovery question to understand their business.
+9. MEETING / CALL SCHEDULING FLOW:
+- When a client asks to book a meeting, call, or discuss directly with Mukul ("call schedule karo", "baat karni hai", "meeting fix karo", "call me"):
+  * NEVER confirm an exact slot yourself.
+  * Inform them that you are checking Mukul sir's calendar and will confirm the slot in 5-10 minutes.
+  * Ask whether morning or evening works better for them.`;
 
   // 1. OpenRouter (Primary High-Intelligence Router)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -412,7 +537,9 @@ SPECIAL RESTAURANT & CAFE SALES EXPERTISE (Ground from our Complete Profile & Pa
   if (pollReply) return pollReply;
 
   // 5. Dynamic Contextual Fallback (Offline emergency only)
-  if (historyLen > 4) {
+  if (isMeetingIntent(incomingText)) {
+    return `Bilkul! Main Mukul sir ke calendar se next available slot verify karke aapko agle 5-10 minute me confirm karti hu. 😊 Aapke liye morning ka time convenient rahega ya shaam ka?`;
+  } else if (historyLen > 4) {
     return `Aapka requirement samajh aa gaya hai. Isko live discuss karne aur exact ads strategy finalize karne ke liye kya hum Mukul ke sath aaj 10 minute ki quick call schedule karein?`;
   } else if (historyLen > 2) {
     return `Bilkul! Hum aapke specific business goals ke hisab se customized campaign structure design karte hain. Kya aap apna business name aur monthly estimated budget share karenge taaki main ek clear roadmap share kar saku?`;
@@ -421,33 +548,146 @@ SPECIAL RESTAURANT & CAFE SALES EXPERTISE (Ground from our Complete Profile & Pa
   return `Namaste! Main Maya hu, MSR Next Gen se (founded by Mukul Mishra). Hum Meta & Google Ads aur 24/7 AI WhatsApp bots se aapke sales scale karte hain. Aap kis business ke liye marketing ya AI automation explore kar rahe hain?`;
 }
 
+// Qualification Gate: Ensures only genuine, qualified leads trigger dossiers to Mukul
+export function isQualifiedForDossier(customer) {
+  if (!customer) return false;
+  if (customer.alertSentToOwner) return false;
+  if (isOwnerNumber(customer.phone)) return false;
+
+  // If lead is in meeting approval flow, that has its own specific meeting alert
+  if (customer.meetingState === 'pending_owner_approval') return false;
+
+  // Qualification 1: Explicit financial budget provided
+  if (customer.budget && customer.budget.length > 2) return true;
+
+  // Qualification 2: Website or Instagram link provided for audit
+  if (customer.websiteUrl) return true;
+
+  // Qualification 3: Business name + category known with at least 2 customer conversation turns
+  const customerTurns = (customer.history || []).filter((m) => m.sender === 'customer').length;
+  if (customer.businessName && customer.category && customer.category !== 'Unclassified' && customerTurns >= 2) {
+    return true;
+  }
+
+  return false;
+}
+
+// Dispatch Meeting Request Alert to Mukul
+export async function sendMeetingRequestToOwner(customer, incomingText, sock) {
+  if (!sock) return;
+  const isLid = !customer.phone || customer.phone.length > 13 || customer.isLid;
+  const displayPhone = isLid ? 'WhatsApp Direct Chat (LID)' : `+${customer.phone}`;
+
+  const alertMessage = `📅 *MEETING REQUEST FROM CLIENT!*
+━━━━━━━━━━━━━━━━━━━━
+👤 *Client*: ${customer.name || 'Inbound Client'}
+📱 *Phone*: ${displayPhone}
+🏢 *Business*: ${customer.businessName || 'Business Owner'} (${customer.category || 'Inbound'})
+💰 *Budget*: ${customer.budget || 'To be discussed on audit call'}
+💬 *Client Message*: "${incomingText}"
+
+Mukul sir, kya time slot confirm karna hai?
+👉 *Reply karein*:
+*!slot ${customer.phone} <Date & Time>*
+(Example: *!slot ${customer.phone} Kal shaam 5:00 PM*)
+━━━━━━━━━━━━━━━━━━━━
+_Dispatched via MSR Sales Mind_`;
+
+  try {
+    const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
+    await sock.sendMessage(primaryJid, { text: alertMessage });
+    if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
+      const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
+      await sock.sendMessage(backupJid, { text: alertMessage });
+    }
+  } catch (err) {
+    console.error('[Meeting Alert to Mukul failed]:', err);
+  }
+}
+
+// Confirm meeting slot from Mukul's !slot command
+export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
+  loadCrmDatabase();
+  const cleanPhone = cleanPhoneNumber(targetPhone);
+  let customer = crmDatabase[cleanPhone];
+
+  if (!customer) {
+    const raw = String(targetPhone).replace(/[^0-9]/g, '');
+    const entry = Object.values(crmDatabase).find((c) => c.phone.includes(raw) || raw.includes(c.phone));
+    if (entry) customer = entry;
+  }
+
+  if (!customer) {
+    customer = getOrCreateCustomerRecord(cleanPhone);
+  }
+
+  customer.meetingState = 'confirmed';
+  customer.meetingSlot = slotDetails;
+  customer.stage = 'meeting_scheduled';
+  customer.lastActive = Date.now();
+
+  const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
+
+Mukul sir ke sath aapki 1-on-1 Business Growth Audit Call confirm ho gayi hai:
+🕒 *Confirmed Slot*: *${slotDetails}*
+
+Mukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi specific report ya questions discuss karne ho, toh aap yahan share kar sakte hain! 🚀`;
+
+  customer.history.push({
+    sender: 'ai',
+    text: clientMsg,
+    timestamp: Date.now(),
+  });
+  saveCrmDatabase();
+
+  if (sock) {
+    try {
+      const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
+      await sock.sendMessage(clientJid, { text: clientMsg });
+    } catch (err) {
+      console.error('[Failed to send meeting confirmation to client]:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `✅ *Meeting Confirmed!*\n\nClient (+${customer.phone}) ko slot "${slotDetails}" WhatsApp par send kar diya gaya hai aur CRM me stage *meeting_scheduled* set ho gaya hai.`,
+  };
+}
+
 // =============================================================================
 // AGENT 4: EXECUTIVE DOSSIER DISPATCHER TO MUKUL'S WHATSAPP (+91 88875 21156)
 // =============================================================================
 export async function sendHotLeadDossierToOwner(customer, sock) {
   if (!sock) return;
 
+  const isLid = !customer.phone || customer.phone.length > 13 || customer.isLid;
+  const displayPhone = isLid ? 'WhatsApp Direct Chat (LID)' : `+${customer.phone}`;
+  const callAction = isLid
+    ? `_Direct chat thread available in WhatsApp_`
+    : `👉 *1-Tap WhatsApp Call*: https://wa.me/${customer.phone}`;
+
   const dossierMessage = `🔥 *HOT LEAD QUALIFIED & READY TO CLOSE!*
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Client Name*: ${customer.name || 'Business Owner'}
-📱 *Phone*: +${customer.phone}
-🏢 *Business*: ${customer.businessName || 'Business Owner'} (${customer.category})
+📱 *Phone*: ${displayPhone}
+🏢 *Business*: ${customer.businessName || 'Business Owner'} (${customer.category || 'General'})
 💰 *Budget / Spend*: ${customer.budget || 'To be discussed on audit call'}
 ⚠️ *Core Pain Point*: ${customer.painPoint || 'Needs qualified leads & WhatsApp automation'}
 🔗 *Website / IG*: ${customer.websiteUrl || 'Not provided'}
-🎯 *Funnel Stage*: *${customer.stage.toUpperCase()}*
+🎯 *Funnel Stage*: *${(customer.stage || 'hot').toUpperCase()}*
 
 📝 *Recent Context*:
-${customer.history.slice(-2).map((m) => `• ${m.sender === 'customer' ? 'Client' : 'AI'}: ${m.text}`).join('\n')}
+${(customer.history || []).slice(-2).map((m) => `• ${m.sender === 'customer' ? 'Client' : 'AI'}: ${m.text}`).join('\n')}
 
-👉 *1-Tap WhatsApp Call*: https://wa.me/${customer.phone}
+${callAction}
 ━━━━━━━━━━━━━━━━━━━━
 _Dispatched via MSR Multi-Agent Sales Mind_`;
 
   try {
     const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
     await sock.sendMessage(primaryJid, { text: dossierMessage });
-    console.log(`[Executive Dossier Sent to Mukul at ${MUKUL_PRIMARY_ALERT_PHONE}] for lead +${customer.phone}`);
+    console.log(`[Executive Dossier Sent to Mukul at ${MUKUL_PRIMARY_ALERT_PHONE}] for lead ${displayPhone}`);
 
     if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
       const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
@@ -464,12 +704,33 @@ _Dispatched via MSR Multi-Agent Sales Mind_`;
 // =============================================================================
 // MAIN ENTRY POINT FOR INCOMING WHATSAPP MESSAGES
 // =============================================================================
-export async function handleIncomingSalesMessage(senderJid, text, sock) {
-  const cleanPhone = cleanPhoneNumber(senderJid.split('@')[0]);
-  const pushName = sock?.chats?.[senderJid]?.name || '';
+export async function handleIncomingSalesMessage(senderJid, text, sock, contactInfo = {}) {
+  let rawPhone = senderJid.split('@')[0];
+  let resolvedPhone = rawPhone;
+
+  if (senderJid.endsWith('@lid')) {
+    if (contactInfo.participant && !contactInfo.participant.endsWith('@lid')) {
+      resolvedPhone = contactInfo.participant.split('@')[0];
+    } else {
+      resolvedPhone = resolveLidToPhone(rawPhone);
+    }
+  }
+
+  const cleanPhone = cleanPhoneNumber(resolvedPhone);
+
+  // If sender is Mukul (Owner), do not treat as lead
+  if (isOwnerNumber(cleanPhone)) {
+    return 'Namaste Mukul sir! MSR Sales AI is running smoothly.';
+  }
+
+  const pushName = contactInfo.pushName || sock?.chats?.[senderJid]?.name || '';
 
   // 1. Get or create customer memory profile
   const customer = getOrCreateCustomerRecord(cleanPhone, pushName);
+  customer.senderJid = senderJid;
+  if (resolvedPhone.length > 13) {
+    customer.isLid = true;
+  }
 
   // 2. Append incoming message to conversation timeline
   customer.history.push({
@@ -481,8 +742,19 @@ export async function handleIncomingSalesMessage(senderJid, text, sock) {
   // 3. Multi-agent analysis (Psychology, Intent, Links, Budget)
   analyzeCustomerIntent(customer, text);
 
-  // 4. Generate consultative open-ended sales response
-  const reply = await generateConsultativeSalesReply(customer, text);
+  // 4. Generate consultative open-ended sales response & handle meeting intent
+  let reply = '';
+  if (isMeetingIntent(text)) {
+    customer.meetingState = 'pending_owner_approval';
+    customer.stage = 'meeting_requested';
+    reply = `Bilkul! Main Mukul sir ke calendar se slot verify karke aapko agle 5-10 minute me confirm karti hu. 😊\n\nAapke liye morning ka time convenient rahega ya shaam ka?`;
+    await sendMeetingRequestToOwner(customer, text, sock);
+  } else {
+    reply = await generateConsultativeSalesReply(customer, text);
+    if (isQualifiedForDossier(customer)) {
+      await sendHotLeadDossierToOwner(customer, sock);
+    }
+  }
 
   // 5. Append AI reply to conversation timeline
   customer.history.push({
@@ -492,12 +764,6 @@ export async function handleIncomingSalesMessage(senderJid, text, sock) {
   });
 
   saveCrmDatabase();
-
-  // 6. Check if hot lead needs instant executive dossier to Mukul (+91 88875 21156)
-  if (customer.stage === 'hot_ready_to_close' && !customer.alertSentToOwner) {
-    await sendHotLeadDossierToOwner(customer, sock);
-  }
-
   return reply;
 }
 

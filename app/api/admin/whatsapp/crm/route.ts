@@ -80,6 +80,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (action === 'delete_lead') {
+      const res = await fetchFromWorker('/crm/delete-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      if (res) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: res.status });
+      }
+
+      // Fallback: Delete directly from local disk
+      try {
+        if (fs.existsSync(CRM_FILE)) {
+          const raw = fs.readFileSync(CRM_FILE, 'utf-8');
+          const data = JSON.parse(raw);
+          const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+          delete data[cleanPhone];
+          delete data[phone];
+          fs.writeFileSync(CRM_FILE, JSON.stringify(data, null, 2), 'utf-8');
+          return NextResponse.json({ success: true, deleted: true, phone });
+        }
+      } catch (err: unknown) {
+        console.error('[CRM API Disk Delete Error]:', err);
+      }
+    }
+
     return NextResponse.json({ success: false, error: 'Worker unreachable or invalid action' }, { status: 400 });
   } catch (err: unknown) {
     return NextResponse.json(
