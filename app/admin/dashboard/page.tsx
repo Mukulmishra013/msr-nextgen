@@ -31,6 +31,10 @@ import {
   X,
   Activity,
   Clock,
+  UtensilsCrossed,
+  Gift,
+  Calendar,
+  ShoppingBag,
 } from 'lucide-react';
 
 export interface CrmLeadItem {
@@ -52,7 +56,7 @@ export interface CrmLeadItem {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'leads' | 'whatsapp_crm' | 'whatsapp_qr' | 'brands' | 'case_study' | 'digest'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'whatsapp_crm' | 'whatsapp_qr' | 'restaurant' | 'brands' | 'case_study' | 'digest'>('leads');
   const [leadFilter, setLeadFilter] = useState<'needs_you' | 'hot' | 'all'>('all');
 
   // Audio alert chime function for instant lead notifications
@@ -157,6 +161,103 @@ export default function AdminDashboardPage() {
       console.error(err);
     } finally {
       setSendingCrmFollowup(false);
+    }
+  };
+
+  // Restaurant AI & Birthday Retention CRM State
+  const [restaurantOrders, setRestaurantOrders] = useState<any[]>([]);
+  const [restaurantCustomers, setRestaurantCustomers] = useState<any[]>([]);
+  const [loadingRestaurant, setLoadingRestaurant] = useState(false);
+  const [restaurantWaStatus, setRestaurantWaStatus] = useState<{
+    status: string;
+    qrCode?: string | null;
+    user?: any;
+    isCloudFallback?: boolean;
+    lastError?: string;
+  }>({ status: 'idle', qrCode: null });
+  const [isStartingRestaurantWa, setIsStartingRestaurantWa] = useState(false);
+  const [isDisconnectingRestaurantWa, setIsDisconnectingRestaurantWa] = useState(false);
+  const [sendingWishId, setSendingWishId] = useState<string | null>(null);
+  const [wishNotification, setWishNotification] = useState<{ id: string; msg: string; url?: string } | null>(null);
+
+  const fetchRestaurantData = async () => {
+    setLoadingRestaurant(true);
+    try {
+      const [loyaltyRes, waRes] = await Promise.all([
+        fetch('/api/restaurant/loyalty', { cache: 'no-store' }),
+        fetch('/api/restaurant/whatsapp', { cache: 'no-store' }),
+      ]);
+      if (loyaltyRes.ok) {
+        const lData = await loyaltyRes.json();
+        if (lData.orders) setRestaurantOrders(lData.orders);
+        if (lData.customers) setRestaurantCustomers(lData.customers);
+      }
+      if (waRes.ok) {
+        const wData = await waRes.json();
+        setRestaurantWaStatus(wData);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRestaurant(false);
+    }
+  };
+
+  const handleStartRestaurantWhatsApp = async () => {
+    setIsStartingRestaurantWa(true);
+    try {
+      await fetch('/api/restaurant/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' }),
+      });
+      await fetchRestaurantData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsStartingRestaurantWa(false);
+    }
+  };
+
+  const handleDisconnectRestaurantWhatsApp = async () => {
+    if (!confirm('Kya aap Restaurant WhatsApp session disconnect karna chahte hain? (Agency bot safe rahega)')) return;
+    setIsDisconnectingRestaurantWa(true);
+    try {
+      await fetch('/api/restaurant/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' }),
+      });
+      await fetchRestaurantData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDisconnectingRestaurantWa(false);
+    }
+  };
+
+  const handleSendBirthdayWish = async (customerId: string) => {
+    setSendingWishId(customerId);
+    setWishNotification(null);
+    try {
+      const res = await fetch('/api/restaurant/loyalty', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_birthday_wish', customerId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWishNotification({
+          id: customerId,
+          msg: 'Birthday Voucher WhatsApp par dispatch ho gaya!',
+          url: data.whatsappUrl,
+        });
+        fetchRestaurantData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSendingWishId(null);
     }
   };
 
@@ -266,6 +367,15 @@ export default function AdminDashboardPage() {
     fetchCrmLeads();
     if (activeTab === 'whatsapp_crm') {
       const interval = setInterval(fetchCrmLeads, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
+  // Polling for Restaurant Pilot & Table Orders tab
+  useEffect(() => {
+    if (activeTab === 'restaurant') {
+      fetchRestaurantData();
+      const interval = setInterval(fetchRestaurantData, 3500);
       return () => clearInterval(interval);
     }
   }, [activeTab]);
@@ -553,9 +663,30 @@ export default function AdminDashboardPage() {
           }`}
         >
           <QrCode className="w-4 h-4" />
-          <span>WhatsApp QR (Linked Device)</span>
+          <span>Agency WhatsApp QR</span>
           {waStatus.status === 'connected' && (
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('restaurant')}
+          className={`px-4 py-2.5 rounded-t-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+            activeTab === 'restaurant'
+              ? 'bg-slate-900 text-amber-400 border-t-2 border-amber-500 border-x border-slate-800'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <UtensilsCrossed className="w-4 h-4 text-amber-400" />
+          <span>Restaurant AI & Table Orders</span>
+          {restaurantOrders.length > 0 ? (
+            <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+              {restaurantOrders.length}
+            </span>
+          ) : (
+            <span className="bg-amber-500/20 text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded-full border border-amber-500/30">
+              NEW
+            </span>
           )}
         </button>
 
@@ -1467,6 +1598,453 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* TAB: RESTAURANT AI PILOT & TABLE ORDERS CRM */}
+      {activeTab === 'restaurant' && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                  <UtensilsCrossed className="w-3.5 h-3.5" />
+                  <span>The Grand Bistro & Craft Kitchen • Pilot Engine</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Restaurant QR Menu, Table AI & Birthday CRM
+                </h2>
+                <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+                  Autonomous dining experience: QR Table scan → 3D AI Concierge (Chef Maya) → Smart AOV Pairings → Instant WhatsApp Order Dispatch & Birthday Retention Engine.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/restaurant"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs sm:text-sm hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/25"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Open Live Customer Menu</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+
+                <button
+                  onClick={fetchRestaurantData}
+                  disabled={loadingRestaurant}
+                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 text-xs sm:text-sm font-bold hover:bg-slate-800 transition-all"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingRestaurant ? 'animate-spin' : ''}`} />
+                  <span>Refresh Feed</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick KPI Stat Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-800/80">
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Live Table Orders</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-white">
+                  {restaurantOrders.length}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Dispatched to kitchen</div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Total Order Value</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-400">
+                  ₹{restaurantOrders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Average order value boost</div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Guest Loyalty Profiles</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-white">
+                  {restaurantCustomers.length}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">With phone & birthday data</div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Gift className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Upcoming Birthdays</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-rose-400">
+                  {restaurantCustomers.filter((c) => c.birthday).length}
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Targeted repeat retention</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main 2-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Left Column: Dedicated Restaurant WhatsApp QR & Birthday Retention CRM */}
+            <div className="lg:col-span-5 space-y-8">
+              
+              {/* Card 1: Restaurant WhatsApp Linked Device */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white">Restaurant WhatsApp Number</h3>
+                      <p className="text-xs text-slate-400">Dedicated socket (.whatsapp_auth_restaurant)</p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                      restaurantWaStatus.status === 'connected'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : restaurantWaStatus.status === 'qr_ready'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        restaurantWaStatus.status === 'connected'
+                          ? 'bg-emerald-400'
+                          : restaurantWaStatus.status === 'qr_ready'
+                          ? 'bg-amber-400'
+                          : 'bg-slate-500'
+                      }`}
+                    />
+                    {restaurantWaStatus.status === 'connected'
+                      ? 'Connected'
+                      : restaurantWaStatus.status === 'qr_ready'
+                      ? 'Scan QR Now'
+                      : 'Not Linked'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-amber-950/20 border border-amber-500/20 rounded-2xl text-xs text-amber-200/90 mb-5 leading-relaxed">
+                  🛡️ <strong>100% Isolated Socket:</strong> Agency ka main WhatsApp bot (+91 95193 42440) bilkul untouched rahega. Restaurant owner apna alag WhatsApp number yaha scan kar ke table orders aur birthday offers automate kar sakte hain.
+                </div>
+
+                {/* QR Display or Connected State */}
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center">
+                  {restaurantWaStatus.status === 'connected' ? (
+                    <div className="space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-black text-white">Restaurant Bot Live & Active!</h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Connected ID: <span className="font-mono text-emerald-400">{restaurantWaStatus.user?.id || 'Restaurant Phone'}</span>
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-left text-xs text-slate-300 space-y-1">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase">Live Intelligence Features:</div>
+                        <div>• Instant order tickets to kitchen & guest WhatsApp</div>
+                        <div>• Real-time IST clock awareness for meal timing & bookings</div>
+                        <div>• Automated Birthday cake vouchers with 15% discount</div>
+                      </div>
+
+                      <button
+                        onClick={handleDisconnectRestaurantWhatsApp}
+                        disabled={isDisconnectingRestaurantWa}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold hover:bg-rose-500/20 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{isDisconnectingRestaurantWa ? 'Disconnecting...' : 'Disconnect Restaurant Number'}</span>
+                      </button>
+                    </div>
+                  ) : restaurantWaStatus.status === 'qr_ready' && restaurantWaStatus.qrCode ? (
+                    <div className="space-y-4">
+                      <p className="text-xs text-amber-300 font-semibold">
+                        Point WhatsApp camera at this QR code (Linked Devices):
+                      </p>
+                      <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl">
+                        <img
+                          src={restaurantWaStatus.qrCode}
+                          alt="Restaurant WhatsApp QR Code"
+                          className="w-56 h-56 mx-auto object-contain"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        WhatsApp → Settings → Linked Devices → Link a Device
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="py-6 space-y-4">
+                      <div className="w-14 h-14 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                        <Smartphone className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">No Restaurant WhatsApp Connected</h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Click below to generate a fresh QR code and link your restaurant phone.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={handleStartRestaurantWhatsApp}
+                        disabled={isStartingRestaurantWa}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black hover:bg-amber-400 transition-all shadow-md shadow-amber-500/20"
+                      >
+                        {isStartingRestaurantWa ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Generating QR Code...</span>
+                          </>
+                        ) : (
+                          <>
+                            <QrCode className="w-4 h-4" />
+                            <span>Generate Pairing QR Code</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 2: Birthday Retention CRM & Repeat Customer Offers */}
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white">Birthday Retention CRM</h3>
+                      <p className="text-xs text-slate-400">Re-engage guests with Free Lava Cake + 15% OFF</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
+                    VIP Offers
+                  </span>
+                </div>
+
+                {wishNotification && (
+                  <div className="mb-4 p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs text-emerald-300 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{wishNotification.msg}</span>
+                    </div>
+                    {wishNotification.url && (
+                      <a
+                        href={wishNotification.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] hover:bg-emerald-400"
+                      >
+                        Open WhatsApp
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                  {restaurantCustomers.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-500">
+                      No customer profiles yet. They will appear here automatically when guests order via QR.
+                    </div>
+                  ) : (
+                    restaurantCustomers.map((cust) => (
+                      <div
+                        key={cust.id}
+                        className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                              <span>{cust.name}</span>
+                              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                {cust.totalVisits} visits
+                              </span>
+                            </div>
+                            <div className="text-xs font-mono text-slate-400">+{cust.phone}</div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                              🎂 {cust.birthdayDisplay || cust.birthday || '15 Oct'}
+                            </span>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              Fav: {cust.favoriteDish || 'Signature Special'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
+                          <span className="text-slate-400 text-[11px]">
+                            Spent: <strong className="text-emerald-400">₹{cust.totalSpent || 0}</strong>
+                          </span>
+
+                          {cust.birthdayWishSent ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Voucher Sent ✅</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleSendBirthdayWish(cust.id)}
+                              disabled={sendingWishId === cust.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white text-[11px] font-bold hover:from-rose-400 hover:to-pink-500 transition-all shadow-sm"
+                            >
+                              {sendingWishId === cust.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Sending...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Gift className="w-3 h-3" />
+                                  <span>Send Birthday Offer 🎁</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Column: Live Table Orders Stream */}
+            <div className="lg:col-span-7">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                      <ShoppingBag className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white">Live Table Orders Feed</h3>
+                      <p className="text-xs text-slate-400">Customer table scans & WhatsApp dispatches in real-time</p>
+                    </div>
+                  </div>
+
+                  <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                    {restaurantOrders.length} Orders
+                  </span>
+                </div>
+
+                {restaurantOrders.length === 0 ? (
+                  <div className="text-center py-16 px-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                    <UtensilsCrossed className="w-10 h-10 text-slate-600 mx-auto" />
+                    <h4 className="text-sm font-bold text-white">No Table Orders Received Yet</h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Scan table QR code or visit <span className="text-amber-400">/restaurant</span>, choose food pairing recommendations, and place a demo order!
+                    </p>
+                    <a
+                      href="/restaurant"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black hover:bg-amber-400 transition-all"
+                    >
+                      <span>Try Customer QR Menu</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[750px] overflow-y-auto pr-1">
+                    {restaurantOrders.map((ord) => (
+                      <div
+                        key={ord.id}
+                        className="bg-slate-950 border border-slate-800 rounded-2xl p-5 hover:border-amber-500/30 transition-all space-y-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                              #{ord.id}
+                            </span>
+                            <span className="text-xs font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded-full">
+                              📍 {ord.table || 'Table 1'}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {ord.createdAt ? new Date(ord.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                            </span>
+                          </div>
+
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                            👨‍🍳 {ord.status || 'Kitchen Preparing'}
+                          </span>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-slate-400">Guest: </span>
+                            <strong className="text-white text-sm">{ord.customerName}</strong>
+                            <span className="text-slate-500 font-mono ml-2">(+{ord.phone})</span>
+                          </div>
+
+                          <a
+                            href={`https://wa.me/${ord.phone}?text=${encodeURIComponent(`Namaste ${ord.customerName} ji! Aapka Table ${ord.table} ka order # ${ord.id} ready ho raha hai!`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            <span>Chat on WhatsApp</span>
+                          </a>
+                        </div>
+
+                        {/* Items Breakdown */}
+                        <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-3 space-y-1.5">
+                          {ord.items?.map((it: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-xs text-slate-300">
+                              <span className="flex items-center gap-2">
+                                <span className="font-bold text-amber-400">{it.qty}x</span>
+                                <span>{it.name}</span>
+                              </span>
+                              <span className="font-mono text-slate-400">₹{it.price * it.qty}</span>
+                            </div>
+                          ))}
+
+                          {ord.specialNote && (
+                            <div className="pt-2 mt-2 border-t border-slate-800 text-[11px] text-amber-300/80 italic">
+                              📝 Special Note: &quot;{ord.specialNote}&quot;
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Total & Action */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="text-xs text-slate-400">
+                            Subtotal: <strong className="text-base text-emerald-400 font-black">₹{ord.subtotal}</strong>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500">
+                            WhatsApp confirmation auto-dispatched to guest ✅
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         </div>
       )}
 

@@ -46,6 +46,15 @@ export default function Navbar() {
         {/* Desktop / TV Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm tv:text-base font-semibold text-slate-700">
           <Link
+            href="/restaurant"
+            className="flex items-center gap-1.5 text-amber-900 font-bold bg-amber-50 hover:bg-amber-100/80 px-3 py-1.5 rounded-full border border-amber-200/80 transition-colors shadow-2xs"
+          >
+            <span>🍽️ Restaurant AI Demo</span>
+            <span className="bg-amber-600 text-white text-[9px] px-1.5 py-0.2 rounded-full uppercase font-black tracking-wider">
+              QR
+            </span>
+          </Link>
+          <Link
             href="/agents"
             className="flex items-center gap-1.5 text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200/80 transition-colors shadow-2xs"
           >
@@ -128,6 +137,29 @@ export default function Navbar() {
                 </div>
               </div>
               <ChevronRight className="w-4 h-4 text-emerald-600" />
+            </Link>
+
+            {/* Restaurant AI QR Demo */}
+            <Link
+              href="/restaurant"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/70 border border-amber-200 text-amber-950 font-bold shadow-2xs hover:shadow-sm transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                  <span className="text-base">🍽️</span>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-extrabold text-amber-950">Restaurant AI QR Menu</span>
+                    <span className="bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded-full uppercase font-black tracking-wider">
+                      Live
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-amber-800 font-medium">3D AI Concierge & Table WhatsApp</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-600" />
             </Link>
 
             {/* Navigation Sections */}

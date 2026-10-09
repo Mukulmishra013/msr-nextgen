@@ -37,9 +37,11 @@ const __dirname = path.dirname(__filename);
 
 const ADMIN_AUTH_DIR = path.resolve(__dirname, '../.whatsapp_auth');
 const SANDBOX_AUTH_DIR = path.resolve(__dirname, '../.whatsapp_auth_sandbox');
+const RESTAURANT_AUTH_DIR = path.resolve(__dirname, '../.whatsapp_auth_restaurant');
 
 if (!fs.existsSync(ADMIN_AUTH_DIR)) fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });
 if (!fs.existsSync(SANDBOX_AUTH_DIR)) fs.mkdirSync(SANDBOX_AUTH_DIR, { recursive: true });
+if (!fs.existsSync(RESTAURANT_AUTH_DIR)) fs.mkdirSync(RESTAURANT_AUTH_DIR, { recursive: true });
 
 const PORT = process.env.PORT || 5001;
 const logger = pino({ level: 'silent' });
@@ -105,14 +107,39 @@ async function generateAIWhatsAppReply(userQuery, senderJid, personaType = 'admi
       : '';
 
   const isSandbox = personaType === 'sandbox';
+  const isRestaurant = personaType === 'restaurant';
 
-  const systemPrompt = isSandbox
-    ? `You are the MSR Next Gen AI Auto-Pilot assistant running on a 5-minute LIVE DEMO on this business WhatsApp number.
+  const nowIST = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  let systemPrompt = '';
+  if (isRestaurant) {
+    systemPrompt = `You are Chef Maya, the friendly 24/7 AI Concierge & Hostess for "The Grand Bistro & Craft Kitchen".
+Current Live Indian Standard Time (IST): ${nowIST}.
+Today's Kitchen Operating Status: Open daily from 12:00 PM to 11:30 PM (Serving Lunch, High Tea & Dinner).
+Signature Menu Highlights:
+- Truffle Malai Paneer Tikka (₹380)
+- Burrata Sourdough Pizza (₹540)
+- Smoked Butter Chicken & Garlic Naan (₹580)
+- Belgian Chocolate Lava Cake (₹249)
+- Craft Sangria & Mocktails (₹220 - ₹280)
+Special Features: Instant QR Table Ordering, Chef's pairings, VIP Birthday celebrations with complimentary Lava Cake + 15% discount.
+CRITICAL GUIDELINES:
+1. Warm, gracious hospitality in Hinglish or English (match customer language).
+2. If customer asks about current time, date, day of week, schedule, open/close status, or table booking, answer accurately using the Live IST time above (${nowIST}).
+3. Keep responses concise (2 to 3 sentences max) with delightful food emojis.
+4. If they want to reserve a table or order, warmly guide them to table booking or our QR menu.`;
+  } else if (isSandbox) {
+    systemPrompt = `You are the MSR Next Gen AI Auto-Pilot assistant running on a 5-minute LIVE DEMO on this business WhatsApp number.
 Explain that you are an AI agent responding in real-time to show how fast and smart MSR Next Gen automation works.
 Services: Meta Ads, Google Ads, 24/7 AI WhatsApp customer booking.
 Keep answers warm, polite, in natural Hinglish or English (2 to 3 sentences max).
-Guide them to visit https://msrnextgen.com or WhatsApp Mukul at +91 95193 42440.`
-    : `You are Maya, the 24/7 AI Growth Assistant for "MSR Next Gen" (India's premier Digital Marketing & AI Agency founded by Mukul).
+Guide them to visit https://msrnextgen.com or WhatsApp Mukul at +91 95193 42440.`;
+  } else {
+    systemPrompt = `You are Maya, the 24/7 AI Growth Assistant for "MSR Next Gen" (India's premier Digital Marketing & AI Agency founded by Mukul).
 Services: High-converting Meta (Instagram/FB) Ads, Google Ads, and 24/7 AI WhatsApp Agents that qualify leads and automate customer orders for Indian businesses and D2C brands.
 Contact email: msbestshoopingpro@gmail.com, Customer Care: +91 88875 21156, Sales/Owner: +91 95193 42440.${learnedContext}
 CRITICAL RULES:
@@ -120,6 +147,7 @@ CRITICAL RULES:
 2. Answer directly and concisely (2 to 4 sentences).
 3. IMPORTANT: Always complete your sentences fully. Never stop abruptly.
 4. Guide them toward booking a free 15-minute business growth audit with Mukul.`;
+  }
 
   // Try Groq
   if (groqKey) {
@@ -189,6 +217,10 @@ CRITICAL RULES:
       }
     }
   } catch {}
+
+  if (personaType === 'restaurant') {
+    return 'Namaste! Main The Grand Bistro ki AI Concierge Chef Maya hu. Humara restaurant open hai (12 PM - 11:30 PM). Table booking ya signature menu recommendations ke liye bataiye, main aapki kya madad kar sakti hu? 🍽️✨';
+  }
 
   return 'Namaste! Main MSR Next Gen ki AI Assistant hu. Hum aapke business ke liye high-converting Meta Ads aur 24/7 AI WhatsApp Chatbots setup karte hain. Free 15-minute audit ke liye +91 95193 42440 par sampark karein!';
 }
@@ -551,7 +583,152 @@ async function startSandboxWhatsAppSocket() {
 }
 
 // =============================================================================
-// HTTP SERVER (PORT 5001) WITH CLEAN ISOLATION FOR ADMIN & SANDBOX
+// ENGINE 3: DEDICATED RESTAURANT WHATSAPP SOCKET (.whatsapp_auth_restaurant)
+// =============================================================================
+let restaurantSock = null;
+let restaurantQrCode = null;
+let restaurantStatus = 'idle'; // 'idle' | 'initializing' | 'qr_ready' | 'connected' | 'disconnected'
+let restaurantUser = null;
+let restaurantLastError = null;
+const restaurantProcessedMsgIds = new Set();
+let isRestaurantStarting = false;
+
+async function cleanRestaurantSession() {
+  try {
+    if (restaurantSock) {
+      try {
+        await restaurantSock.logout();
+      } catch {}
+      try {
+        restaurantSock.end();
+      } catch {}
+      restaurantSock = null;
+    }
+
+    try {
+      fs.rmSync(RESTAURANT_AUTH_DIR, { recursive: true, force: true });
+      fs.mkdirSync(RESTAURANT_AUTH_DIR, { recursive: true });
+    } catch {}
+
+    restaurantStatus = 'idle';
+    restaurantQrCode = null;
+    restaurantUser = null;
+    restaurantLastError = null;
+    isRestaurantStarting = false;
+    console.log('[Restaurant Engine] Restaurant session cleaned and reset to idle.');
+  } catch (err) {
+    console.error('[Restaurant Cleanup Error]:', err);
+  }
+}
+
+async function startRestaurantWhatsAppSocket() {
+  if (isRestaurantStarting || restaurantStatus === 'connected') return;
+  isRestaurantStarting = true;
+  restaurantStatus = 'initializing';
+  restaurantQrCode = null;
+  restaurantLastError = null;
+
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState(RESTAURANT_AUTH_DIR);
+    const { version } = await fetchLatestBaileysVersion();
+
+    restaurantSock = makeWASocket({
+      version,
+      auth: state,
+      logger,
+      printQRInTerminal: false,
+      browser: ['The Grand Bistro AI', 'Chrome', '120.0.0'],
+      syncFullHistory: false,
+      connectTimeoutMs: 60_000,
+      keepAliveIntervalMs: 25_000,
+    });
+
+    restaurantSock.ev.on('creds.update', saveCreds);
+
+    restaurantSock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        restaurantStatus = 'qr_ready';
+        try {
+          restaurantQrCode = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
+        } catch {}
+      }
+
+      if (connection === 'close') {
+        isRestaurantStarting = false;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        restaurantStatus = 'disconnected';
+        restaurantQrCode = null;
+        restaurantLastError = lastDisconnect?.error?.message || 'Disconnected';
+
+        console.log(`[Restaurant WhatsApp Closed] Status: ${statusCode}`);
+        if (restaurantSock) {
+          try { restaurantSock.end(); } catch {}
+          restaurantSock = null;
+        }
+
+        if (isLoggedOut || statusCode === 408 || String(restaurantLastError).includes('QR refs')) {
+          try {
+            fs.rmSync(RESTAURANT_AUTH_DIR, { recursive: true, force: true });
+            fs.mkdirSync(RESTAURANT_AUTH_DIR, { recursive: true });
+          } catch {}
+        }
+      } else if (connection === 'open') {
+        isRestaurantStarting = false;
+        restaurantStatus = 'connected';
+        restaurantQrCode = null;
+        restaurantLastError = null;
+        restaurantUser = restaurantSock.user;
+        console.log(`\n[Restaurant WhatsApp Live!] Grand Bistro Session Active: ${restaurantSock.user?.id || 'Connected'}\n`);
+      }
+    });
+
+    restaurantSock.ev.on('messages.upsert', async (m) => {
+      try {
+        const msg = m.messages?.[0];
+        if (!msg || !msg.message || msg.key?.fromMe || !msg.key?.remoteJid) return;
+
+        const messageId = msg.key.id;
+        if (restaurantProcessedMsgIds.has(messageId)) return;
+        restaurantProcessedMsgIds.add(messageId);
+        setTimeout(() => restaurantProcessedMsgIds.delete(messageId), 5 * 60 * 1000);
+
+        const senderJid = msg.key.remoteJid;
+        if (senderJid.endsWith('@g.us') || senderJid === 'status@broadcast') return;
+
+        const text =
+          msg.message.conversation ||
+          msg.message.extendedTextMessage?.text ||
+          '';
+
+        if (!text.trim()) return;
+
+        console.log(`[Restaurant Incoming Msg from ${senderJid}]: "${text}"`);
+
+        try {
+          await restaurantSock.readMessages([msg.key]);
+          await restaurantSock.sendPresenceUpdate('composing', senderJid);
+        } catch {}
+
+        await new Promise((r) => setTimeout(r, 1500));
+        const aiReply = await generateAIWhatsAppReply(text.trim(), senderJid, 'restaurant');
+        await restaurantSock.sendMessage(senderJid, { text: aiReply });
+        console.log(`[Restaurant AI Chef Replied]: "${aiReply.substring(0, 50)}..."`);
+      } catch (err) {
+        console.error('[Restaurant Message Handling Error]:', err);
+      }
+    });
+  } catch (err) {
+    console.error('[Restaurant Socket Init Error]:', err);
+    restaurantStatus = 'idle';
+    isRestaurantStarting = false;
+  }
+}
+
+// =============================================================================
+// HTTP SERVER (PORT 5001) WITH CLEAN ISOLATION FOR ADMIN, SANDBOX & RESTAURANT
 // =============================================================================
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -672,7 +849,77 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3. WHATSAPP AI SALES CRM & MEMORY ENDPOINTS
+  // 3. RESTAURANT ENDPOINTS (Dedicated "The Grand Bistro" WhatsApp Socket)
+  // GET /restaurant/status
+  if (req.method === 'GET' && url.pathname === '/restaurant/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        success: true,
+        status: restaurantStatus,
+        qrCode: restaurantQrCode,
+        user: restaurantUser,
+        lastError: restaurantLastError,
+      })
+    );
+    return;
+  }
+
+  // POST /restaurant/start - Generate QR pairing for restaurant phone
+  if (req.method === 'POST' && url.pathname === '/restaurant/start') {
+    startRestaurantWhatsAppSocket();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, message: 'Restaurant WhatsApp initialized. Generating QR code...' }));
+    return;
+  }
+
+  // POST /restaurant/disconnect - Disconnect restaurant session
+  if (req.method === 'POST' && url.pathname === '/restaurant/disconnect') {
+    await cleanRestaurantSession();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, message: 'Restaurant WhatsApp disconnected and cleaned.' }));
+    return;
+  }
+
+  // POST /restaurant/send - Send WhatsApp message from restaurant socket (with admin fallback)
+  if (req.method === 'POST' && url.pathname === '/restaurant/send') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', async () => {
+      try {
+        const { phone, message } = JSON.parse(body);
+        if (!restaurantSock || restaurantStatus !== 'connected') {
+          // Fallback to active admin socket if available
+          if (adminSock && adminStatus === 'connected') {
+            let cleanPhone = String(phone).replace(/[^0-9]/g, '');
+            if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+            const jid = `${cleanPhone}@s.whatsapp.net`;
+            const sent = await adminSock.sendMessage(jid, { text: message });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, messageId: sent.key.id, to: cleanPhone, fallback: 'admin_socket' }));
+            return;
+          }
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Restaurant WhatsApp socket not connected' }));
+          return;
+        }
+
+        let cleanPhone = String(phone).replace(/[^0-9]/g, '');
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        const jid = `${cleanPhone}@s.whatsapp.net`;
+
+        const sent = await restaurantSock.sendMessage(jid, { text: message });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, messageId: sent.key.id, to: cleanPhone }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 4. WHATSAPP AI SALES CRM & MEMORY ENDPOINTS
   // GET /crm/conversations - List all leads with full memory & chat history
   if (req.method === 'GET' && url.pathname === '/crm/conversations') {
     const leads = getAllCrmLeads();
@@ -752,7 +999,7 @@ const server = http.createServer(async (req, res) => {
 
 // Launch on Port 5001
 server.listen(PORT, () => {
-  console.log(`[Dual-Engine WhatsApp Worker] Running on port ${PORT}`);
+  console.log(`[Tri-Engine WhatsApp Worker] Running on port ${PORT}`);
   // Start Mukul's permanent business WhatsApp
   startAdminWhatsAppSocket();
 

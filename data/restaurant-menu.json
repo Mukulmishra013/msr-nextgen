@@ -1,0 +1,203 @@
+{
+  "restaurant": {
+    "name": "The Grand Bistro & Craft Kitchen",
+    "tagline": "Modern Indian Fusion, Wood-Fired Sourdough & 24/7 AI Concierge",
+    "cuisine": "Modern Fusion, North Indian, Italian & Continental",
+    "currency": "₹",
+    "managerPhone": "919519342440",
+    "operatingHours": {
+      "lunch": "12:00 PM - 04:00 PM",
+      "dinner": "07:00 PM - 11:30 PM",
+      "kitchenStatus": "Active"
+    }
+  },
+  "categories": [
+    { "id": "all", "label": "All Dishes", "icon": "sparkles" },
+    { "id": "starters", "label": "Signature Starters", "icon": "flame" },
+    { "id": "pizzas", "label": "Wood-Fired Pizzas", "icon": "pizza" },
+    { "id": "mains", "label": "Gourmet Mains & Curries", "icon": "utensils" },
+    { "id": "burgers", "label": "Craft Burgers & Breads", "icon": "sandwich" },
+    { "id": "mocktails", "label": "Craft Mocktails & Coolers", "icon": "coffee" },
+    { "id": "desserts", "label": "Artisanal Desserts", "icon": "cake" }
+  ],
+  "items": [
+    {
+      "id": "item-1",
+      "name": "Truffle Butter Paneer Tikka",
+      "category": "starters",
+      "price": 349,
+      "isVeg": true,
+      "tag": "Chef Signature 🔥",
+      "rating": 4.9,
+      "description": "Charcoal-smoked cottage cheese cubes glazed in Italian white truffle oil, spiced cream marinade & mint chutney caviar.",
+      "calories": "380 kcal",
+      "prepTime": "15 min",
+      "image": "https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Chef's Royal Pairing",
+        "addonItemId": "item-7",
+        "addonName": "Smoked Virgin Sangria",
+        "addonPrice": 149,
+        "discountedPrice": 99,
+        "pitch": "Truffle Paneer Tikka ke sath Smoked Virgin Sangria perfect refresh karega. Save ₹50 combo discount!"
+      }
+    },
+    {
+      "id": "item-2",
+      "name": "Fiery Peri-Peri Chicken Poppers",
+      "category": "starters",
+      "price": 389,
+      "isVeg": false,
+      "tag": "Best Seller 👑",
+      "rating": 4.8,
+      "description": "Tender boneless chicken morsels flash-fried in African bird's eye chili dust, garlic aioli dip & pickled jalapenos.",
+      "calories": "460 kcal",
+      "prepTime": "12 min",
+      "image": "https://images.unsplash.com/photo-1562967914-608f82629710?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Crunch & Sip Booster",
+        "addonItemId": "item-8",
+        "addonName": "Chilled Mint Lime Crusher",
+        "addonPrice": 129,
+        "discountedPrice": 79,
+        "pitch": "Fiery Chicken ke spicy hit ko cool down karne ke liye Mint Lime Crusher add karein for just ₹79!"
+      }
+    },
+    {
+      "id": "item-3",
+      "name": "Burrata & Pesto Sourdough Pizza (11\")",
+      "category": "pizzas",
+      "price": 549,
+      "isVeg": true,
+      "tag": "Wood-Fired 🍕",
+      "rating": 4.95,
+      "description": "48-hour fermented sourdough crust, San Marzano tomato base, fresh molten Burrata ball, pine nut basil pesto & balsamic drizzle.",
+      "calories": "680 kcal",
+      "prepTime": "18 min",
+      "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Italian Feast Upgrade",
+        "addonItemId": "item-9",
+        "addonName": "Cheesy Herb Garlic Pull-Apart",
+        "addonPrice": 189,
+        "discountedPrice": 119,
+        "pitch": "Is pizza ke sath Cheesy Garlic Breadsticks add karein aur ₹70 save karein!"
+      }
+    },
+    {
+      "id": "item-4",
+      "name": "Smoked Butter Chicken Slider Bowl",
+      "category": "mains",
+      "price": 469,
+      "isVeg": false,
+      "tag": "House Special ⭐",
+      "rating": 4.9,
+      "description": "Tandoori chicken pulled in 8-hour slow-cooked makhani gravy infused with kasuri methi, served with 2 mini sourdough kulchas & onion pearls.",
+      "calories": "620 kcal",
+      "prepTime": "20 min",
+      "image": "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Makhani Deluxe Combo",
+        "addonItemId": "item-10",
+        "addonName": "Kesari Saffron Phirni",
+        "addonPrice": 169,
+        "discountedPrice": 99,
+        "pitch": "Butter Chicken ke baad warm Saffron Phirni dessert add karein sirf ₹99 me!"
+      }
+    },
+    {
+      "id": "item-5",
+      "name": "Avocado & Edamame Quinoa Biryani",
+      "category": "mains",
+      "price": 429,
+      "isVeg": true,
+      "tag": "Healthy & Gourmet 🌿",
+      "rating": 4.75,
+      "description": "Dum-cooked aged basmati layered with Haas avocado slices, edamame beans, saffron essence, crispy fried shallots & burani garlic raita.",
+      "calories": "440 kcal",
+      "prepTime": "18 min",
+      "image": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Guilt-Free Sip Pair",
+        "addonItemId": "item-7",
+        "addonName": "Smoked Virgin Sangria",
+        "addonPrice": 149,
+        "discountedPrice": 99,
+        "pitch": "Healthy Biryani ke sath freshly squeezed fruit Sangria add karein for just ₹99!"
+      }
+    },
+    {
+      "id": "item-6",
+      "name": "Double Smash Cheddar Truffle Burger",
+      "category": "burgers",
+      "price": 399,
+      "isVeg": false,
+      "tag": "Juicy Smash 🍔",
+      "rating": 4.88,
+      "description": "Two crispy-edged smashed chicken/lamb patties, double aged English cheddar, caramelized port onions & truffle mayo in brioche buns.",
+      "calories": "590 kcal",
+      "prepTime": "14 min",
+      "image": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80",
+      "upsellPairing": {
+        "title": "Ultimate Burger Box Combo",
+        "addonItemId": "item-8",
+        "addonName": "Loaded Peri-Peri Fries & Soda",
+        "addonPrice": 179,
+        "discountedPrice": 109,
+        "pitch": "Smash Burger ke sath Seasoned Peri-Peri Fries & drink add karein aur ₹70 discount lein!"
+      }
+    },
+    {
+      "id": "item-7",
+      "name": "Smoked Virgin Sangria",
+      "category": "mocktails",
+      "price": 149,
+      "isVeg": true,
+      "tag": "Top Mocktail 🍷",
+      "rating": 4.8,
+      "description": "Cold-pressed grape, pomegranate & orange reduction infused with cinnamon smoke, green apple dices & fresh mint sprigs.",
+      "calories": "110 kcal",
+      "prepTime": "5 min",
+      "image": "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&auto=format&fit=crop&q=80"
+    },
+    {
+      "id": "item-8",
+      "name": "Chilled Mint Lime Crusher",
+      "category": "mocktails",
+      "price": 129,
+      "isVeg": true,
+      "tag": "Summer Cooler ❄️",
+      "rating": 4.7,
+      "description": "Crushed mountain ice, bruised garden mint, freshly squeezed gondhoraj lime, black salt & sparkling club soda.",
+      "calories": "85 kcal",
+      "prepTime": "5 min",
+      "image": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&auto=format&fit=crop&q=80"
+    },
+    {
+      "id": "item-9",
+      "name": "Cheesy Herb Garlic Pull-Apart",
+      "category": "starters",
+      "price": 189,
+      "isVeg": true,
+      "tag": "Cheese Pull 🧀",
+      "rating": 4.85,
+      "description": "Artisanal mini sourdough loaf stuffed with mozzarella, roasted garlic confit butter & oregano herbs.",
+      "calories": "390 kcal",
+      "prepTime": "10 min",
+      "image": "https://images.unsplash.com/photo-1619895092538-128341789043?w=600&auto=format&fit=crop&q=80"
+    },
+    {
+      "id": "item-10",
+      "name": "Molten Belgian Chocolate Lava Cake",
+      "category": "desserts",
+      "price": 249,
+      "isVeg": true,
+      "tag": "Complimentary on Birthday 🎂",
+      "rating": 4.96,
+      "description": "70% dark Belgian chocolate warm cake with gushing molten core, vanilla bean gelato scoop & gold dust wafer.",
+      "calories": "410 kcal",
+      "prepTime": "10 min",
+      "image": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&auto=format&fit=crop&q=80"
+    }
+  ]
+}

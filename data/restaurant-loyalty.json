@@ -1,0 +1,59 @@
+{
+  "orders": [
+    {
+      "id": "GB-801",
+      "customerName": "Rahul Sharma",
+      "phone": "919519342440",
+      "table": "Table 4",
+      "items": [
+        { "name": "Burrata & Pesto Sourdough Pizza", "qty": 1, "price": 549 },
+        { "name": "Smoked Virgin Sangria", "qty": 2, "price": 198 }
+      ],
+      "subtotal": 747,
+      "status": "Kitchen Preparing",
+      "createdAt": "2026-10-09T13:45:00.000Z",
+      "specialNote": "Less spicy please, birthday guest on table"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust-1",
+      "name": "Rahul Sharma",
+      "phone": "919519342440",
+      "birthday": "12-10",
+      "birthdayDisplay": "12 Oct (In 3 Days)",
+      "favoriteDish": "Burrata & Pesto Sourdough Pizza",
+      "totalVisits": 3,
+      "totalSpent": 3480,
+      "lastVisit": "2026-10-02",
+      "birthdayWishSent": false,
+      "status": "VIP Regular"
+    },
+    {
+      "id": "cust-2",
+      "name": "Priya Verma",
+      "phone": "918887521156",
+      "birthday": "09-10",
+      "birthdayDisplay": "Today 🎂",
+      "favoriteDish": "Molten Belgian Chocolate Lava Cake",
+      "totalVisits": 5,
+      "totalSpent": 5890,
+      "lastVisit": "2026-09-28",
+      "birthdayWishSent": false,
+      "status": "Birthday Today"
+    },
+    {
+      "id": "cust-3",
+      "name": "Amit Patel",
+      "phone": "919876543210",
+      "birthday": "15-10",
+      "birthdayDisplay": "15 Oct (In 6 Days)",
+      "favoriteDish": "Smoked Butter Chicken Slider Bowl",
+      "totalVisits": 2,
+      "totalSpent": 2150,
+      "lastVisit": "2026-09-20",
+      "birthdayWishSent": false,
+      "status": "Upcoming Birthday"
+    }
+  ]
+}
