@@ -717,6 +717,32 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Birthday Retention Notice Banner */}
+      {restaurantCustomers.some((c) => c.birthday) && activeTab !== 'restaurant' && (
+        <div className="bg-gradient-to-r from-rose-950/40 via-slate-900 to-slate-900 border border-rose-500/30 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 text-xs mb-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl animate-bounce">🎂</span>
+            <div>
+              <div className="font-extrabold text-white flex items-center gap-2">
+                <span>Restaurant Birthday Alerts Active</span>
+                <span className="bg-rose-500/20 text-rose-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-500/30">
+                  {restaurantCustomers.filter((c) => c.birthday).length} Guests
+                </span>
+              </div>
+              <p className="text-slate-400 text-[11px] mt-0.5">
+                Priya Verma (Today 🎂), Rahul Sharma & other guests have birthdays this week! Send Free Lava Cake pass.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('restaurant')}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 text-white font-black text-xs shrink-0 shadow-md transition-all active:scale-95"
+          >
+            Open Birthday CRM →
+          </button>
+        </div>
+      )}
+
       {/* Main Navigation Tabs */}
       <div className="flex border-b border-slate-800 gap-1.5 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
         <button
@@ -777,7 +803,12 @@ export default function AdminDashboardPage() {
         >
           <UtensilsCrossed className="w-4 h-4 text-amber-400" />
           <span>Restaurant AI & Table Orders</span>
-          {restaurantOrders.length > 0 ? (
+          {restaurantCustomers.filter((c) => c.birthday).length > 0 ? (
+            <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+              <span>🎂</span>
+              <span>{restaurantCustomers.filter((c) => c.birthday).length}</span>
+            </span>
+          ) : restaurantOrders.length > 0 ? (
             <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full">
               {restaurantOrders.length}
             </span>
@@ -1497,38 +1528,42 @@ export default function AdminDashboardPage() {
               ) : waStatus.status === 'qr_ready' && waStatus.qrCode ? (
                 <div className="flex flex-col items-center p-6 bg-slate-950 border border-slate-800 rounded-2xl my-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={waStatus.qrCode}
-                    alt="WhatsApp QR Code"
-                    className="w-64 h-64 rounded-xl border-4 border-white shadow-2xl"
-                  />
-                  {waStatus.lastError === 'QR refs attempts ended' ? (
-                    <div className="mt-4 flex flex-col items-center gap-2">
-                      <span className="text-xs font-semibold text-rose-400">⚠️ QR Code Expired (Timeout)</span>
-                      <button
-                        onClick={async () => {
-                          setIsRestartingAdmin(true);
-                          await fetch('/api/admin/whatsapp', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'reset' }),
-                          });
-                          setTimeout(fetchWhatsAppStatus, 2000);
-                          setIsRestartingAdmin(false);
-                        }}
-                        disabled={isRestartingAdmin}
-                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isRestartingAdmin ? 'animate-spin' : ''}`} />
-                        <span>Generate Fresh QR Code</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 mt-4 text-xs font-bold text-amber-400 animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      <span>Scan this QR code with WhatsApp on your phone</span>
-                    </div>
-                  )}
+                  <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl mb-4">
+                    <img
+                      src={waStatus.qrCode}
+                      alt="WhatsApp QR Code"
+                      className="w-64 h-64 mx-auto object-contain"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Live Pairing QR Code Ready to Scan</span>
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm text-center">
+                    Apne phone me WhatsApp open karein → Settings → Linked Devices → Link a Device → Camera se scan karein.
+                  </p>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        setIsRestartingAdmin(true);
+                        await fetch('/api/admin/whatsapp', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'reset' }),
+                        });
+                        setTimeout(fetchWhatsAppStatus, 2500);
+                        setIsRestartingAdmin(false);
+                      }}
+                      disabled={isRestartingAdmin}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isRestartingAdmin ? 'animate-spin' : ''}`} />
+                      <span>{isRestartingAdmin ? 'Generating...' : '⚡ Generate Fresh QR Code'}</span>
+                    </button>
+                  </div>
                 </div>
               ) : waStatus.status === 'offline' ? (
                 <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl text-center space-y-3 my-6">

@@ -266,6 +266,7 @@ async function startAdminWhatsAppSocket() {
 
       if (qr) {
         adminStatus = 'qr_ready';
+        adminLastError = null;
         try {
           adminQrCode = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
         } catch {}
@@ -418,6 +419,7 @@ async function resetAdminWhatsAppSession() {
   adminStatus = 'initializing';
   adminQrCode = null;
   adminUser = null;
+  adminLastError = null;
 
   try {
     fs.rmSync(ADMIN_AUTH_DIR, { recursive: true, force: true });
@@ -650,6 +652,7 @@ async function startRestaurantWhatsAppSocket() {
 
       if (qr) {
         restaurantStatus = 'qr_ready';
+        restaurantLastError = null;
         try {
           restaurantQrCode = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
         } catch {}
