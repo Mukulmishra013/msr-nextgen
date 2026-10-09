@@ -228,6 +228,9 @@ export default function AdminDashboardPage() {
           // Only sync from server if user is not currently editing or saving
           setRestaurantSettings((prev) => {
             if (isEditingSettingsRef.current) return prev;
+            try {
+              localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(sData.settings));
+            } catch {}
             return sData.settings;
           });
         }
@@ -239,10 +242,26 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Load local backup settings on client mount if available
+  useEffect(() => {
+    try {
+      const backup = localStorage.getItem('msr_restaurant_settings_backup');
+      if (backup) {
+        const parsed = JSON.parse(backup);
+        if (parsed.managerPhone || parsed.chefPhone) {
+          setRestaurantSettings((prev) => ({ ...prev, ...parsed }));
+        }
+      }
+    } catch {}
+  }, []);
+
   const handleSaveRestaurantSettings = async () => {
     setIsSavingSettings(true);
     setSettingsSuccessMsg(null);
     try {
+      try {
+        localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(restaurantSettings));
+      } catch {}
       const res = await fetch('/api/restaurant/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,6 +271,9 @@ export default function AdminDashboardPage() {
       if (data.success) {
         isEditingSettingsRef.current = false;
         setRestaurantSettings(data.settings);
+        try {
+          localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(data.settings));
+        } catch {}
         setSettingsSuccessMsg('✓ Manager aur Chef numbers save ho gaye! Ab orders inhi numbers par aayenge.');
         setTimeout(() => setSettingsSuccessMsg(null), 5000);
       }

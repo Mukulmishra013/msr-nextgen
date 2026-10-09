@@ -849,15 +849,18 @@ export default function RestaurantMenuPage() {
               </div>
             </div>
 
-            {/* Single Fast Name Input */}
+            {/* Guest Details Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSaveGuestProfile();
               }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                  Aapka Naam (First Name)*
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -865,33 +868,60 @@ export default function RestaurantMenuPage() {
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Enter your name (e.g. Mukul, Aman, Pooja)..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-semibold"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-semibold"
                     autoFocus
                   />
                   {customerName && (
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xs">
-                      ✓ Ready
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-xs">
+                      ✓
                     </span>
                   )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    WhatsApp (For Order Ticket)
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="e.g. 9519342440"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    Birthday (DD-MM) 🎂
+                  </label>
+                  <input
+                    type="text"
+                    value={customerBirthday}
+                    onChange={(e) => setCustomerBirthday(e.target.value)}
+                    placeholder="e.g. 15-10"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono"
+                  />
                 </div>
               </div>
 
               {/* Big 3D Glow Unlock Button */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black py-3.5 rounded-2xl text-sm shadow-xl shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black py-3 rounded-xl text-xs sm:text-sm shadow-xl shadow-emerald-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 mt-2"
               >
                 <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>Unlock 3D Menu & Recommendations</span>
+                <span>Unlock 3D Menu & Free Cake Pass</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               {/* Instant Skip Link */}
-              <div className="text-center pt-1">
+              <div className="text-center pt-0.5">
                 <button
                   type="button"
                   onClick={() => handleSaveGuestProfile('Guest')}
-                  className="text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors"
+                  className="text-[11px] text-slate-500 hover:text-slate-300 font-semibold transition-colors"
                 >
                   ⚡ Direct Guest Browse (Skip)
                 </button>

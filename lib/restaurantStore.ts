@@ -146,6 +146,8 @@ function safeWrite(primaryPath: string, tmpPath: string, content: string) {
   } catch {}
 
   try {
+    const tmpDir = path.dirname(tmpPath);
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     fs.writeFileSync(tmpPath, content, 'utf-8');
     written = true;
   } catch {}
@@ -154,20 +156,29 @@ function safeWrite(primaryPath: string, tmpPath: string, content: string) {
 }
 
 function safeRead(primaryPath: string, tmpPath: string): string | null {
-  // Check tmp first as it may have the latest serverless mutation
+  // Read whichever has the most updated / recent content
+  let tmpContent: string | null = null;
+  let tmpMtime = 0;
   try {
     if (fs.existsSync(tmpPath)) {
-      return fs.readFileSync(tmpPath, 'utf-8');
+      tmpMtime = fs.statSync(tmpPath).mtimeMs;
+      tmpContent = fs.readFileSync(tmpPath, 'utf-8');
     }
   } catch {}
 
+  let priContent: string | null = null;
+  let priMtime = 0;
   try {
     if (fs.existsSync(primaryPath)) {
-      return fs.readFileSync(primaryPath, 'utf-8');
+      priMtime = fs.statSync(primaryPath).mtimeMs;
+      priContent = fs.readFileSync(primaryPath, 'utf-8');
     }
   } catch {}
 
-  return null;
+  if (tmpContent && priContent) {
+    return tmpMtime >= priMtime ? tmpContent : priContent;
+  }
+  return tmpContent || priContent || null;
 }
 
 // -----------------------------------------------------------------------------
@@ -228,13 +239,14 @@ async function persistLoyaltyData() {
 
 async function persistSettingsData() {
   initBuffers();
-  safeWrite(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE, JSON.stringify(memorySettings || DEFAULT_SETTINGS, null, 2));
+  const payload = memorySettings || DEFAULT_SETTINGS;
+  safeWrite(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE, JSON.stringify(payload, null, 2));
 
   try {
     const app = getFirebaseAdminApp();
     if (app) {
       const db = getFirestore(app);
-      await db.collection('restaurant').doc('settings').set(memorySettings || DEFAULT_SETTINGS, { merge: true });
+      await db.collection('restaurant').doc('settings').set(payload, { merge: true });
     }
   } catch {}
 }
@@ -245,6 +257,16 @@ async function persistSettingsData() {
 
 export async function getRestaurantData(): Promise<{ orders: RestaurantOrder[]; customers: RestaurantCustomer[] }> {
   initBuffers();
+
+  // Re-read latest from disk/tmp if available
+  const raw = safeRead(PRIMARY_LOYALTY_FILE, TMP_LOYALTY_FILE);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.orders)) memoryOrders = parsed.orders;
+      if (Array.isArray(parsed.customers)) memoryCustomers = parsed.customers;
+    } catch {}
+  }
 
   // Try fetching latest from Firestore if available
   try {
@@ -397,6 +419,15 @@ export async function sendBirthdayWish(customerId: string): Promise<{ success: b
 export async function getRestaurantSettings(): Promise<RestaurantSettings> {
   initBuffers();
 
+  // Check if disk/tmp has newer version
+  const diskRaw = safeRead(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE);
+  if (diskRaw) {
+    try {
+      const diskParsed = JSON.parse(diskRaw);
+      memorySettings = { ...DEFAULT_SETTINGS, ...memorySettings, ...diskParsed };
+    } catch {}
+  }
+
   try {
     const app = getFirebaseAdminApp();
     if (app) {
@@ -413,8 +444,18 @@ export async function getRestaurantSettings(): Promise<RestaurantSettings> {
 
 export async function saveRestaurantSettings(newSettings: Partial<RestaurantSettings>): Promise<RestaurantSettings> {
   initBuffers();
+
+  // Load latest existing before applying delta
+  const diskRaw = safeRead(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE);
+  let baseSettings = { ...DEFAULT_SETTINGS };
+  if (diskRaw) {
+    try {
+      baseSettings = { ...baseSettings, ...JSON.parse(diskRaw) };
+    } catch {}
+  }
+
   memorySettings = {
-    ...DEFAULT_SETTINGS,
+    ...baseSettings,
     ...(memorySettings || {}),
     ...newSettings,
   };
