@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
     const pkg = APPROVED_PACKAGES[packageId];
     const amountInPaise = pkg.amount * 100;
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tm87FZ58zafiUA';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'z9J3uLrQkl86aMdlIMoRO1aq';
 
-    let razorpayOrderId = `test_order_${Date.now()}`;
+    let razorpayOrderId = `order_test_${Date.now()}`;
 
     // If real Razorpay keys are configured, generate authentic order from gateway
     if (keyId && keySecret) {

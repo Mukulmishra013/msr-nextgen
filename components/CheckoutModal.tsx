@@ -79,31 +79,52 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'gro
         throw new Error(orderData.error || 'Failed to initiate order');
       }
 
-      // 2. Check if Razorpay JS SDK is loaded
-      const isRazorpayConfigured = orderData.keyId && !orderData.keyId.includes('placeholder');
+      // 2. Ensure Razorpay Checkout script is loaded
+      const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+          if ((window as any).Razorpay) return resolve(true);
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => resolve(true);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
+      };
 
-      if (typeof window !== 'undefined' && (window as any).Razorpay && isRazorpayConfigured) {
-        const rzp = new (window as any).Razorpay({
+      const scriptLoaded = await loadRazorpayScript();
+
+      if (scriptLoaded && (window as any).Razorpay) {
+        const options = {
           key: orderData.keyId,
           amount: orderData.amount,
           currency: orderData.currency,
           name: 'MSR Next Gen',
           description: orderData.packageName,
-          order_id: orderData.orderId,
+          order_id: orderData.orderId.startsWith('order_') ? orderData.orderId : undefined,
           prefill: {
             name: clientName,
             contact: clientPhone,
           },
           theme: { color: '#0f172a' },
-          handler: function (response: any) {
-            // Redirect to verified onboarding on successful payment
-            router.push(`/onboarding?orderId=${orderData.orderId}&phone=${clientPhone}`);
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            },
           },
+          handler: function (response: any) {
+            // Redirect to verified onboarding ONLY after payment is completed
+            router.push(`/onboarding?orderId=${orderData.orderId}&paymentId=${response.razorpay_payment_id || ''}&phone=${clientPhone}`);
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (resp: any) {
+          setErrorMsg(resp.error?.description || 'Payment Failed. Please try another method.');
+          setLoading(false);
         });
         rzp.open();
       } else {
-        // Sandbox / Test Mode Instant Routing with verified warning
-        router.push(`/onboarding?orderId=${orderData.orderId}&phone=${clientPhone}`);
+        setErrorMsg('Razorpay payment gateway load nahi ho paya. Kripya refresh karein.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Payment initiation failed. Please try again.');
