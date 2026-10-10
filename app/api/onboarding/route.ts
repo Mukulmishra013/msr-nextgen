@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
+      onboardingToken,
       orderId,
       clientPhone,
       businessName,
@@ -60,6 +61,53 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = String(clientPhone).replace(/\D/g, '');
 
+    // -------------------------------------------------------------------------
+    // 🛡️ CRITICAL PAYMENT & AUTHORIZATION GATE
+    // -------------------------------------------------------------------------
+    let isAuthorized = false;
+    const { verifyOnboardingToken, verifySession, linkOrderToClientAccount, getClientAccountByPhone } = await import('@/lib/auth');
+
+    // 1. Verify cryptographic onboarding token
+    if (onboardingToken) {
+      const verified = verifyOnboardingToken(onboardingToken);
+      if (verified) {
+        isAuthorized = true;
+      }
+    }
+
+    // 2. Secondary verify against trusted database order
+    if (!isAuthorized && orderId) {
+      try {
+        const { data: dbOrder } = await supabaseAdmin
+          .from('orders')
+          .select('id, status, client_phone')
+          .or(`id.eq.${orderId},razorpay_order_id.eq.${orderId}`)
+          .maybeSingle();
+
+        if (dbOrder && dbOrder.status === 'paid') {
+          isAuthorized = true;
+        }
+      } catch {}
+    }
+
+    // 3. Tertiary verify: Admin override
+    if (!isAuthorized) {
+      const adminToken = req.cookies.get('msr_admin_session')?.value;
+      const adminSession = verifySession(adminToken);
+      if (adminSession && adminSession.role === 'admin') {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json(
+        {
+          error: 'Payment verification failed: Valid payment token ya paid order zaroori hai onboarding karne ke liye.',
+        },
+        { status: 403 }
+      );
+    }
+
     // Resolve order UUID if razorpay order string (e.g. order_Tm8WsZPMCGSGQD) was passed
     let dbOrderId: string | undefined = undefined;
     if (orderId) {
@@ -77,8 +125,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // -------------------------------------------------------------------------
+    // 🛡️ PREVENT DUPLICATE ONBOARDING SUBMISSIONS FOR SAME ORDER
+    // -------------------------------------------------------------------------
+    const checkTargetId = dbOrderId || orderId;
+    if (checkTargetId) {
+      try {
+        const { data: existing } = await supabaseAdmin
+          .from('client_onboarding')
+          .select('id')
+          .eq('order_id', checkTargetId)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          return NextResponse.json(
+            { error: 'Yeh order pehle se onboard ho chuka hai. Kripya apna Client Portal check karein.' },
+            { status: 409 }
+          );
+        }
+      } catch {}
+    }
+
     const record: OnboardingDbRecord = {
-      order_id: dbOrderId,
+      order_id: dbOrderId || orderId,
       client_phone: cleanPhone,
       business_name: businessName.trim(),
       business_type: businessType.trim(),
@@ -100,6 +169,14 @@ export async function POST(req: NextRequest) {
       console.error('[Onboarding Insert Error]', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Link order to client account if exists
+    try {
+      const existingClient = getClientAccountByPhone(cleanPhone);
+      if (existingClient && (dbOrderId || orderId)) {
+        linkOrderToClientAccount(existingClient.id, dbOrderId || orderId);
+      }
+    } catch {}
 
     // Auto-dispatch confirmation & official receipt link to client on WhatsApp
     try {

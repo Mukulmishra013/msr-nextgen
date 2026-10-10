@@ -111,9 +111,37 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'gro
               setLoading(false);
             },
           },
-          handler: function (response: any) {
-            // Redirect to verified onboarding ONLY after payment is completed
-            router.push(`/onboarding?orderId=${orderData.orderId}&paymentId=${response.razorpay_payment_id || ''}&phone=${clientPhone}`);
+          handler: async function (response: any) {
+            setLoading(true);
+            try {
+              // Server-side cryptographic signature & payment verification
+              const verifyRes = await fetch('/api/checkout/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  paymentId: response.razorpay_payment_id || '',
+                  signature: response.razorpay_signature || '',
+                  packageId: selectedPkg,
+                  packageName: activePackage.name,
+                  amount: activePackage.amount,
+                  clientPhone,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (verifyRes.ok && verifyData.success) {
+                router.push(
+                  `/onboarding?token=${encodeURIComponent(verifyData.onboardingToken || '')}&orderId=${encodeURIComponent(orderData.orderId)}&phone=${encodeURIComponent(clientPhone)}`
+                );
+              } else {
+                setErrorMsg(verifyData.error || 'Payment verification failed on server.');
+                setLoading(false);
+              }
+            } catch (err: any) {
+              setErrorMsg('Payment verification network error. Please contact Mukul sir (+91 88875 21156).');
+              setLoading(false);
+            }
           },
         };
 

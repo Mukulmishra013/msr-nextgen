@@ -1,0 +1,16 @@
+{
+  "cli_1791636719515_90d86e6a": {
+    "id": "cli_1791636719515_90d86e6a",
+    "name": "Vikram Malhotra",
+    "businessName": "Apex Fitness Studio",
+    "category": "Gym & Fitness Center",
+    "email": "client_1791636719482@testbusiness.com",
+    "phone": "9872078550",
+    "passwordHash": "c730d18bbdd53e13bb3efcb857eacddd5149fb972f6c3b77bddd7dd6045897ebb7d2a37230e022342fe0defb50c8d72bcf01c30d042de76670f259bf3cd339a8",
+    "salt": "3f7e652621a81149da3b28f80cdfd089",
+    "city": "Lucknow",
+    "createdAt": 1791636719515,
+    "orders": [],
+    "onboardingCompleted": false
+  }
+}

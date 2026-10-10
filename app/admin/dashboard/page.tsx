@@ -60,6 +60,17 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'leads' | 'whatsapp_crm' | 'whatsapp_qr' | 'restaurant' | 'brands' | 'case_study' | 'digest'>('leads');
   const [leadFilter, setLeadFilter] = useState<'needs_you' | 'hot' | 'all'>('all');
 
+  // Verify admin authentication immediately on mount
+  useEffect(() => {
+    fetch('/api/admin/auth')
+      .then((res) => {
+        if (!res.ok) router.push('/admin/login');
+      })
+      .catch(() => {
+        router.push('/admin/login');
+      });
+  }, [router]);
+
   // Audio alert chime function for instant lead notifications
   const playLeadAlertSound = () => {
     try {

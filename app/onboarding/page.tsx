@@ -19,6 +19,7 @@ import {
 
 function OnboardingForm() {
   const searchParams = useSearchParams();
+  const token = searchParams.get('token') || '';
   const orderId = searchParams.get('orderId') || '';
   const prefillPhone = searchParams.get('phone') || '';
 
@@ -36,6 +37,38 @@ function OnboardingForm() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // 🛡️ LOCKED GATE IF NO TOKEN AND NO ORDER ID
+  if (!token && !orderId) {
+    return (
+      <div className="max-w-xl mx-auto my-16 p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-center text-white">
+        <div className="w-16 h-16 bg-brand-500/10 border border-brand-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 text-brand-400">
+          <ShieldCheck className="w-9 h-9" />
+        </div>
+        <h2 className="text-2xl font-black mb-3 tracking-tight">
+          Payment Verification Required 🔒
+        </h2>
+        <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+          Yeh onboarding page sirf un verified clients ke liye hai jinhone growth package purchase kiya hai ya jinke paas verified payment token hai.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a
+            href="/#pricing"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-md"
+          >
+            Explore Growth Packages
+          </a>
+          <a
+            href="/portal/login"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-6 py-3 rounded-xl text-sm transition-all border border-slate-700"
+          >
+            Client Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -50,6 +83,7 @@ function OnboardingForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          onboardingToken: token,
           orderId,
           clientPhone,
           businessName,
@@ -106,23 +140,31 @@ function OnboardingForm() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <a
+            href="/portal"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3.5 rounded-2xl shadow-md transition-all text-sm"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Open Client Dashboard</span>
+          </a>
+
+          <a
             href={`/invoice?orderId=${encodeURIComponent(orderId)}&phone=${encodeURIComponent(clientPhone)}&business=${encodeURIComponent(businessName)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-2xl shadow-md transition-all text-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3.5 rounded-2xl transition-all text-sm"
           >
             <FileText className="w-4 h-4" />
-            <span>View & Download Official Receipt</span>
+            <span>View Official Receipt</span>
           </a>
 
           <a
             href={`https://wa.me/918887521156?text=Namaste%20Mukul%20sir,%20maine%20onboarding%20form%20submit%20kar%20diya%20hai%20(${encodeURIComponent(businessName)})`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3.5 rounded-2xl transition-all text-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3.5 rounded-2xl transition-all text-sm"
           >
-            <Send className="w-4 h-4 text-emerald-400" />
-            <span>Notify Mukul Sir on WhatsApp</span>
+            <Send className="w-4 h-4 text-white" />
+            <span>WhatsApp Connect</span>
           </a>
         </div>
       </div>

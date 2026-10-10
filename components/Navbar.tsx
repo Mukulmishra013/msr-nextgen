@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AGENCY_CONFIG, getWhatsAppUrl, IS_PLACEHOLDER_PHONE } from '@/lib/config';
 import { trackEvent } from '@/lib/analytics';
 import { useToast } from '@/components/Toast';
-import { MessageCircle, Menu, X, Bot, ChevronRight } from 'lucide-react';
+import { MessageCircle, Menu, X, Bot, ChevronRight, User } from 'lucide-react';
 
 export default function Navbar() {
   const { showToast } = useToast();
@@ -90,6 +90,15 @@ export default function Navbar() {
 
         {/* Right Header Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Client Portal Access */}
+          <Link
+            href="/portal"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+          >
+            <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-400 shrink-0" />
+            <span>Client Portal</span>
+          </Link>
+
           {/* Quick WhatsApp Action */}
           <a
             href={navbarWaUrl}
@@ -124,6 +133,29 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden w-full bg-white/98 backdrop-blur-xl border-b border-surface-200 shadow-xl px-4 pt-3 pb-6 animate-in slide-in-from-top-2 duration-200">
           <nav className="flex flex-col space-y-2">
+            {/* Client Portal Link */}
+            <Link
+              href="/portal"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 text-white font-bold shadow-2xs hover:shadow-sm transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-brand-600/30 text-brand-400 flex items-center justify-center shadow-xs">
+                  <User className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-extrabold text-white">Client Portal / Dashboard</span>
+                    <span className="bg-brand-600 text-white text-[9px] px-1.5 py-0.5 rounded-full uppercase font-black tracking-wider">
+                      Client
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Orders, Invoices & Bot Engine</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </Link>
+
             {/* Featured AI Agents Hub */}
             <Link
               href="/agents"
