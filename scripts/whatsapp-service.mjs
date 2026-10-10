@@ -349,7 +349,10 @@ async function startAdminWhatsAppSocket() {
           try { adminSock.end(); } catch {}
           adminSock = null;
         }
-        if (isLoggedOut || statusCode === 408 || String(adminLastError).includes('QR refs')) {
+        // CRITICAL: NEVER delete valid session credentials on temporary network disconnects or 408 timeouts
+        // Only wipe credentials if user explicitly logged out from their phone WhatsApp Linked Devices
+        if (isLoggedOut) {
+          console.warn('[Admin WhatsApp] Explicit logout detected. Resetting session credentials.');
           try {
             fs.rmSync(ADMIN_AUTH_DIR, { recursive: true, force: true });
             fs.mkdirSync(ADMIN_AUTH_DIR, { recursive: true });

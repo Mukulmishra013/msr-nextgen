@@ -620,6 +620,25 @@ export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
     customer = getOrCreateCustomerRecord(cleanPhone);
   }
 
+  // Check Calendar for existing meeting conflicts / overlaps
+  const existingMeeting = Object.values(crmDatabase).find((c) => {
+    if (c.phone === cleanPhone) return false;
+    if (c.meetingState === 'confirmed' && c.meetingSlot) {
+      // Normalize both strings to compare (e.g. "10 baje", "10:00", "kal 10 baje")
+      const normNew = slotDetails.toLowerCase().replace(/\s+/g, ' ').trim();
+      const normOld = c.meetingSlot.toLowerCase().replace(/\s+/g, ' ').trim();
+      return normNew === normOld || normOld.includes(normNew) || normNew.includes(normOld);
+    }
+    return false;
+  });
+
+  if (existingMeeting) {
+    return {
+      success: false,
+      message: `⚠️ *MEETING SLOT CONFLICT / CLASH!* ⚠️\n\nMukul sir, slot "${slotDetails}" par pehle se meeting booked hai:\n👤 *Existing Client*: ${existingMeeting.name || 'Client'} (+${existingMeeting.phone})\n🏢 *Business*: ${existingMeeting.businessName || 'Business'}\n\nKripya koi doosra time slot choose karke dobara command bhejein:\n*!slot ${targetPhone} <Naya Time>*`,
+    };
+  }
+
   customer.meetingState = 'confirmed';
   customer.meetingSlot = slotDetails;
   customer.stage = 'meeting_scheduled';
