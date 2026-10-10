@@ -260,16 +260,111 @@ export function extractBudget(text) {
   return null;
 }
 
-// Meeting Intent Detector
+// Meeting Intent Detector (Comprehensive Indian Hindi & English)
 export function isMeetingIntent(text) {
   if (!text) return false;
-  const t = text.toLowerCase();
-  return (
-    /(?:call|meeting|baat|connect|audit|slot|appointment)/i.test(t) &&
-    /(?:karo|karni|karein|schedule|book|fix|time|kab|chahiye|hoga|karna|karlo|kar|sakta|sakte|dena|de do|bhejo)/i.test(t)
-  ) ||
-  /(?:free 15-minute|growth audit|1-on-1|zoom|google meet|phone call)/i.test(t) ||
-  /(?:aaj call|kal call|kab baat|call me|book call|book meeting)/i.test(t);
+  const t = text.toLowerCase().trim();
+
+  // 1. Explicit Direct Keywords
+  if (/(?:book call|book meeting|schedule call|schedule meeting|need call|need meeting)/i.test(t)) return true;
+  if (/(?:call me|call karo|call kijiye|call karlo|call kar|call karni|call karna|call par baat|call pe baat)/i.test(t)) return true;
+  if (/(?:baat karni|baat karna|baat karni thi|baat karni h|baat ho sakti|baat karni hai|baat karein)/i.test(t)) return true;
+  if (/(?:meeting chahiye|meeting karni|meeting karna|meeting karlo|meeting fix|meeting schedule|meeting kar do)/i.test(t)) return true;
+  if (/(?:slot chahiye|slot de do|slot do|slot book|slot fix|slot confirm|slot milega|slot de|slot bhej)/i.test(t)) return true;
+  if (/(?:appointment chahiye|appointment book|appointment fix|appointment schedule)/i.test(t)) return true;
+  if (/(?:zoom|google meet|1-on-1|growth audit|audit call|voice call|phone call|strategy call)/i.test(t)) return true;
+
+  // 2. Combination of Action + Topic
+  const hasTopic = /(?:call|meeting|baat|connect|audit|slot|appointment|phone|discuss)/i.test(t);
+  const hasAction = /(?:karo|karein|karna|karni|karlo|kar|sakta|sakte|sakti|chahiye|schedule|book|fix|arrange|do|de do|bhejo|kab|time|hoga|milega|thi|h)/i.test(t);
+  if (hasTopic && hasAction) return true;
+
+  // 3. Short colloquial Hindi
+  if (/(?:kab baat|kab call|call par|phone par|call pe|phone pe|call kab)/i.test(t)) return true;
+
+  return false;
+}
+
+// Name & Business Name Intelligent Extractor
+export function extractNameAndBusiness(text, customer = {}) {
+  if (!text) return { name: customer?.name || '', businessName: customer?.businessName || '' };
+
+  let extractedName = customer?.name || '';
+  let extractedBiz = customer?.businessName || '';
+
+  const cleanText = text.trim();
+
+  // Pattern A: "Name: Rahul, Business: Cafe Mocha" or "Naam: Rahul, Brand: Nacho G"
+  const labelMatch = cleanText.match(/(?:naam|name)\s*[:\-]?\s*([A-Za-z\s]{2,25})[,\n\s]+(?:business|brand|company|shop|cafe|store|clinic|gym)\s*(?:name|ka naam)?\s*[:\-]?\s*([A-Za-z0-9\s&]{2,30})/i);
+  if (labelMatch) {
+    extractedName = labelMatch[1].trim();
+    extractedBiz = labelMatch[2].trim();
+  }
+
+  // Pattern B: "Mera naam Rahul hai aur business Cafe Mocha" or "Mera naam Amit Sharma hai from FitZone Gym"
+  const meraNaamMatch = cleanText.match(/mera\s*naam\s+([A-Za-z\s]{2,25}?)(?:\s+hai|\s+h|\s+from|\s+aur|\s+and|\s*,|\.|$)/i);
+  if (meraNaamMatch && meraNaamMatch[1]) {
+    const candidate = meraNaamMatch[1].trim();
+    if (!['kya', 'hai', 'h', 'nhi', 'nahi'].includes(candidate.toLowerCase())) {
+      extractedName = candidate;
+    }
+  }
+
+  // Pattern C: "I am Rahul from Cafe Mocha" or "Rahul from FitZone" (only at start or with prefix)
+  const fromMatch = cleanText.match(/(?:(?:i am|myself|this is)\s+([A-Za-z\s]{2,20})|^([A-Za-z\s]{2,20}))\s+from\s+([A-Za-z0-9\s&]{2,30})/i);
+  if (fromMatch) {
+    const candidateName = (fromMatch[1] || fromMatch[2] || '').trim();
+    const candidateBiz = (fromMatch[3] || '').trim();
+    if (candidateName && !['hai', 'h', 'hu', 'ho', 'kya', 'aur', 'and'].includes(candidateName.toLowerCase())) {
+      if (!extractedName) extractedName = candidateName;
+      if (!extractedBiz) extractedBiz = candidateBiz;
+    }
+  }
+
+  // Pattern D: "Rahul, Cafe Mocha" or "Rahul - Cafe Mocha" (common comma / hyphen separated replies)
+  const commaMatch = cleanText.match(/^([A-Za-z]{2,20})\s*[,|\-]\s*([A-Za-z0-9\s&]{2,30})$/);
+  if (commaMatch) {
+    const part1 = commaMatch[1].trim();
+    const part2 = commaMatch[2].trim();
+    if (!['hello', 'namaste', 'hi', 'hey', 'yes', 'no'].includes(part1.toLowerCase())) {
+      extractedName = part1;
+      extractedBiz = part2;
+    }
+  }
+
+  // Pattern E: Explicit single name: "Rahul", "Aman Sharma", "Dr. Verma"
+  if (!extractedName || /^(client|customer|user|inbound|business owner)$/i.test(extractedName)) {
+    const singleName = cleanText.match(/^(?:my name is|naam|name)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)$/i);
+    if (singleName && !['hello', 'namaste', 'hi', 'hey', 'yes', 'no', 'call', 'meeting', 'audit', 'slot', 'theek', 'karo', 'karlo'].includes(singleName[1].toLowerCase())) {
+      extractedName = singleName[1].trim();
+    }
+  }
+
+  // Pattern F: Explicit business name mention
+  if (!extractedBiz || /^(business|business owner)$/i.test(extractedBiz)) {
+    const fromBiz = cleanText.match(/\bfrom\s+([A-Za-z0-9&]{2,25}(?:\s+[A-Za-z0-9&]{2,25})?)/i);
+    if (fromBiz) {
+      extractedBiz = fromBiz[1].trim().replace(/\.$/, '');
+    } else {
+      const bizMatch = cleanText.match(/(?:brand|business|company|clinic|cafe|restaurant|store|shop|gym|salon|institute)\s*(?:ka\s*naam\s*|name\s*is\s*|is\s*|hai\s*)?[:\-]?\s*([A-Za-z0-9\s&]{2,30})/i);
+      if (bizMatch) {
+        const candidate = bizMatch[1].trim();
+        if (!['kya', 'hai', 'nhi', 'nahi', 'yes', 'no', 'aur', 'karna', 'hoga'].includes(candidate.toLowerCase())) {
+          extractedBiz = candidate;
+        }
+      } else {
+        const keywordBiz = cleanText.match(/([A-Za-z0-9&]{2,20}\s+(?:cafe|restaurant|gym|fitness|clinic|hospital|salon|spa|bakery|brand|store|shop|institute|coaching|foods))/i);
+        if (keywordBiz) {
+          extractedBiz = keywordBiz[1].trim();
+        } else if (cleanText.length <= 30 && /(?:cafe|restaurant|gym|fitness|clinic|hospital|salon|spa|bakery|brand|store|shop|institute|coaching|foods)/i.test(cleanText)) {
+          extractedBiz = cleanText;
+          if (extractedName === cleanText) extractedName = customer?.name || '';
+        }
+      }
+    }
+  }
+
+  return { name: extractedName, businessName: extractedBiz };
 }
 
 // =============================================================================
@@ -488,32 +583,30 @@ export async function generateConsultativeSalesReply(customer, incomingText) {
     .map((m) => `${m.sender === 'customer' ? 'Client' : 'Maya (AI)'}: "${m.text}"`)
     .join('\n');
 
-  const systemPrompt = `You are Maya, the 24/7 AI Growth Assistant for "MSR Next Gen", founded by Mukul Mishra (Growth Marketing & 24/7 AI WhatsApp Automation Agency in India).
+  const systemPrompt = `You are Maya, the 24/7 AI Growth Partner for "MSR Next Gen", founded by Mukul Mishra (India's premier Performance Marketing & 24/7 AI WhatsApp Automation Agency).
 You are speaking directly with a business owner on WhatsApp representing Mukul and MSR Next Gen.
-CRITICAL PERSONA RULES:
-1. NEVER claim to be Mukul Mishra himself. NEVER say "Main Mukul hu" or "Mera naam Mukul hai".
-2. If asked who you are or who runs the agency, introduce yourself as Maya (AI Growth Assistant at MSR Next Gen) and explain that Mukul Mishra is the founder and Growth Architect.
-3. Warm, natural, consultative Hinglish (like an experienced growth partner).
-4. Concise: 2 to 3 sentences maximum per message. No robotic brochures or long walls of text.
-5. Offer our transparent, high-ROI 3 packages tailored to their business:
-   • STARTER (Visibility): Setup ₹2,999 + ₹6,999/month (Google Maps SEO, 4 Reels, Review Booster QR + WhatsApp, Monthly Report)
+CRITICAL SALES PERSONA & HIGH-CONVERSION PSYCHOLOGY:
+1. NEVER claim to be Mukul Mishra himself. NEVER say "Main Mukul hu" or "Mera naam Mukul hai". Introduce yourself as Maya (AI Growth Assistant at MSR Next Gen).
+2. META ADS INBOUND CONVERSION PSYCHOLOGY:
+   • Leads arriving from Meta Ads (Instagram/FB) seek fast clarity, high trust, and measurable ROI.
+   • Acknowledge their ad curiosity immediately and validate their pain point with deep empathy (e.g., "Ad spend ho raha hai par quality leads nahi aa rahi ya fake inquiries aa rahi hain").
+   • Micro-Diagnose: Ask 1 sharp diagnostic question before pitching (e.g., "Aap abhi Meta ads run kar rahe hain ya fresh campaign start karna chahte hain?").
+   • Share concrete Indian case study proof:
+     - D2C / E-Commerce: Amparo (₹2.4L in 30 days, 3.8x ROAS, 28% fake COD eliminated via automated WhatsApp verification).
+     - Restaurants & Cafes: Nacho G & Grand Bistro (Smart QR menu, automated WhatsApp bookings, 40% repeat diners).
+     - Clinics & Salons: 100% automated appointment bookings on WhatsApp without receptionist payroll.
+     - Gyms & Coaching: High-intent local leads with 60% trial conversion rate.
+3. OUR 3 TRANSPARENT HIGH-ROI PACKAGES:
+   • STARTER (Local Visibility): Setup ₹2,999 + ₹6,999/month (Google Maps SEO, 4 Reels, WhatsApp Review Booster QR, Monthly Report)
    • GROWTH (Customer Magnet - Most Popular): Setup ₹4,999 + ₹14,999/month (Starter + Meta/Google Local Ads + 8 Reels + 24/7 AI WhatsApp Inquiry & Booking Bot + Birthday/Anniversary Auto-Offers + Win-Back CRM)
-   • PREMIUM (Full Automation VIP): Setup ₹9,999 + ₹24,999/month (Growth + 12 Reels + Professional Shoot + Custom Booking/Landing Page + AI Calling Agent + Dedicated Manager)
-6. MULTI-NICHE CAPABILITY (We grow ANY local & online business):
-   • Gym & Fitness: Trial workout booking bots, membership renewals, local Meta ads, Instagram reels.
-   • Salons & Spas: Appointment booking via WhatsApp, festive & bridal offers, Google Maps top 3 ranking.
-   • Clinics & Healthcare: Doctor consultation booking, patient appointment reminders, reputation management.
-   • Restaurants & Cafes: Table booking, digital menu, birthday loyalty passes, hyper-local foodie ads.
-   • Coaching & Institutes: Student lead generation funnels, course inquiry automation, parent follow-ups.
-   • D2C & E-Commerce: WhatsApp abandoned cart recovery, COD confirmation, ROAS scaling ads (Amparo proof: ₹2.4L in 30 days, 3.8x ROAS).
-7. SMART PDF BROCHURE SHARING:
-   • We have our official high-value PDF: "MSR Next Gen Complete Profile, Services & Packages" (https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf).
-   • DO NOT spam the link on the first message.
-   • Share it ONLY when a client asks for "packages", "pricing", "quotation", "brochure", "profile", "services list", or "kya kya service dete ho detail me bhejo".
-   • When sharing, say: "Humne complete packages & deliverables PDF ready ki hai, aap yahan dekh sakte hain: https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf — isme Starter, Growth aur Premium sabhi detailed hain."
-8. If the user writes random characters, gibberish (e.g. 'xyz', 'test', 'asdf'), do NOT assume or claim anything was booked; politely ask how you can help their business.
-9. CONSULTATIVE APPROACH: Always ask about their business type, their current marketing challenge, or explain how MSR automation works before rushing to book a call. Always end with a discovery question (e.g., "Aapka business kahan located hai?", "Aap abhi ads run kar rahe hain ya organic customers aate hain?").
-10. CALL SCHEDULING: Only if the client specifically asks to talk directly to Mukul on call, acknowledge warmly, tell them you'll arrange a slot with Mukul in 5-10 mins, and ask for their convenient time (morning vs evening).`;
+   • PREMIUM (Full Automation VIP): Setup ₹9,999 + ₹24,999/month (Growth + 12 Reels + Professional Video Shoot + Custom Landing Page + AI Calling Agent + Dedicated Manager)
+4. SMART PDF BROCHURE SHARING:
+   • Share ONLY when asked for packages/pricing/brochure/services list: https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf
+5. CONCISE & CONVERSATIONAL:
+   • 2 to 3 sentences maximum. Warm, consultative Hinglish. Always complete your thoughts.
+   • End with an engaging micro-discovery question (e.g., "Aapka business kahan located hai?", "Aapka monthly ad budget approx kitna rehta hai?").
+6. AUDIT CALL INVITATION:
+   • Guide smoothly towards a Complimentary 15-Minute Business Growth & Ads Audit Call with Founder Mukul Mishra.`;
 
   // 1. OpenRouter (Primary High-Intelligence Router)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -832,13 +925,26 @@ Mukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi
   }
   saveCrmDatabase();
 
-  if (sock) {
+  let clientDelivered = false;
+  if (sock && typeof sock.sendMessage === 'function') {
     try {
       const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
       await sock.sendMessage(clientJid, { text: clientMsg });
+      clientDelivered = true;
     } catch (err) {
-      console.error('[Failed to send meeting confirmation to client]:', err);
+      console.error('[Failed to send meeting confirmation to client via socket]:', err);
     }
+  }
+
+  if (!clientDelivered && customer.phone && customer.phone.length <= 13) {
+    try {
+      await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: customer.phone, message: clientMsg }),
+        signal: AbortSignal.timeout(6000),
+      });
+    } catch {}
   }
 
   return {
@@ -903,13 +1009,26 @@ Mukul sir (+91 88875 21156) is naye time par aapse connect karenge. Kripya apna 
   }
   saveCrmDatabase();
 
-  if (sock) {
+  let clientDelivered = false;
+  if (sock && typeof sock.sendMessage === 'function') {
     try {
       const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
       await sock.sendMessage(clientJid, { text: clientMsg });
+      clientDelivered = true;
     } catch (err) {
-      console.error('[Failed to send reschedule to client]:', err);
+      console.error('[Failed to send reschedule to client via socket]:', err);
     }
+  }
+
+  if (!clientDelivered && customer.phone && customer.phone.length <= 13) {
+    try {
+      await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: customer.phone, message: clientMsg }),
+        signal: AbortSignal.timeout(6000),
+      });
+    } catch {}
   }
 
   return {
@@ -983,13 +1102,26 @@ Mukul sir (+91 88875 21156) is naye time par aapse connect karenge. Thank you fo
   }
   saveCrmDatabase();
 
-  if (sock) {
+  let clientDelivered = false;
+  if (sock && typeof sock.sendMessage === 'function') {
     try {
       const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
       await sock.sendMessage(clientJid, { text: clientMsg });
+      clientDelivered = true;
     } catch (err) {
-      console.error('[Failed to send delay notice to client]:', err);
+      console.error('[Failed to send delay notice to client via socket]:', err);
     }
+  }
+
+  if (!clientDelivered && customer.phone && customer.phone.length <= 13) {
+    try {
+      await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: customer.phone, message: clientMsg }),
+        signal: AbortSignal.timeout(6000),
+      });
+    } catch {}
   }
 
   return {
@@ -1041,13 +1173,26 @@ Hamari team jald hi aapse fresh slot schedule karne ke liye sampark karegi. Inco
   }
   saveCrmDatabase();
 
-  if (sock) {
+  let clientDelivered = false;
+  if (sock && typeof sock.sendMessage === 'function') {
     try {
       const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
       await sock.sendMessage(clientJid, { text: clientMsg });
+      clientDelivered = true;
     } catch (err) {
-      console.error('[Failed to send cancel notice to client]:', err);
+      console.error('[Failed to send cancel notice to client via socket]:', err);
     }
+  }
+
+  if (!clientDelivered && customer.phone && customer.phone.length <= 13) {
+    try {
+      await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: customer.phone, message: clientMsg }),
+        signal: AbortSignal.timeout(6000),
+      });
+    } catch {}
   }
 
   return {
@@ -1240,25 +1385,81 @@ export async function handleIncomingSalesMessage(senderJid, text, sock, contactI
   // 3. Multi-agent analysis (Psychology, Intent, Links, Budget)
   analyzeCustomerIntent(customer, text);
 
-  // 4. Generate consultative open-ended sales response (AI always talks, discovers & consults first)
-  let reply = await generateConsultativeSalesReply(customer, text);
-
-  // If user explicitly asked for meeting/call and AI mentioned scheduling, notify Mukul
-  if (isMeetingIntent(text)) {
-    customer.meetingState = 'pending_owner_approval';
-    customer.stage = 'meeting_requested';
-    await sendMeetingRequestToOwner(customer, text, sock);
-  } else if (isQualifiedForDossier(customer)) {
-    await sendHotLeadDossierToOwner(customer, sock);
+  // Extract Name & Business Name from incoming text
+  const { name: parsedName, businessName: parsedBiz } = extractNameAndBusiness(text, customer);
+  if (parsedName && (!customer.name || customer.name === 'Client' || customer.name === 'Business Owner' || /^\+?\d+$/.test(customer.name))) {
+    customer.name = parsedName;
+  }
+  if (parsedBiz && (!customer.businessName || customer.businessName === 'Business' || customer.businessName === 'Business Owner')) {
+    customer.businessName = parsedBiz;
   }
 
-  // 5. Append AI reply to conversation timeline
+  const hasValidName = Boolean(customer.name && customer.name.trim().length >= 2 && !/^(client|customer|user|inbound|business owner)$/i.test(customer.name.trim()));
+  const hasValidBiz = Boolean(customer.businessName && customer.businessName.trim().length >= 2 && !/^(business|business owner)$/i.test(customer.businessName.trim()));
+
+  const meetingIntent = isMeetingIntent(text);
+  let reply = '';
+
+  // SCENARIO 1: Client was in 'collecting_info' (we asked for Name & Business)
+  if (customer.meetingState === 'collecting_info') {
+    if (parsedName || parsedBiz || hasValidName || hasValidBiz) {
+      customer.meetingState = 'pending_owner_approval';
+      customer.stage = 'meeting_requested';
+
+      // Send complete meeting request alert to Mukul
+      await sendMeetingRequestToOwner(customer, text, sock);
+
+      const displayName = customer.name || 'ji';
+      const displayBiz = customer.businessName ? ` (${customer.businessName})` : '';
+      reply = `Thank you ${displayName}${displayBiz}! 🙏 Aapki details note ho gayi hain.
+
+Main Mukul sir (+91 88875 21156) se next available calendar slot check karke agle 5 minute me aapko WhatsApp par confirm karti hu! 🚀`;
+    } else {
+      reply = `Zaroor! Mukul sir ke sath 1-on-1 strategy call plan karne ke liye, kripya apna *Name* aur *Business / Brand ka Naam* share kar dijiye taaki hum customised audit report prepare kar sakein! 😊`;
+    }
+  }
+  // SCENARIO 2: Client expresses meeting intent for the first time
+  else if (meetingIntent) {
+    if (!hasValidName || !hasValidBiz) {
+      // Must collect Name & Business Name BEFORE alerting Mukul
+      customer.meetingState = 'collecting_info';
+      customer.stage = 'meeting_requested';
+
+      if (!hasValidName && !hasValidBiz) {
+        reply = `Bilkul! Mukul sir ke sath 1-on-1 Business Growth & Ads Audit Call arrange karne se pehle, kripya apna *Shubh Naam* aur *Business / Brand ka Naam* share kar dijiye? 😊 Taaki Mukul sir aapke business ke according customized growth roadmap ready rakh sakein!`;
+      } else if (!hasValidBiz) {
+        reply = `Zaroor ${customer.name} ji! Call plan karne se pehle kripya aapke *Business / Brand ka Naam* aur category bata dijiye taaki hum accurate audit plan ready kar sakein? 😊`;
+      } else {
+        reply = `Bilkul! ${customer.businessName} ke liye Mukul sir ke sath call plan karne se pehle, kripya apna *Shubh Naam* share kar dijiye? 😊`;
+      }
+    } else {
+      // Both Name and Business are already known!
+      customer.meetingState = 'pending_owner_approval';
+      customer.stage = 'meeting_requested';
+      await sendMeetingRequestToOwner(customer, text, sock);
+
+      reply = `Bilkul ${customer.name} ji! ${customer.businessName} ke liye Mukul sir ke calendar se available slot check karke main agle 5-10 minute me aapko WhatsApp par confirm karti hu. 😊 Aapke liye morning ka time convenient rahega ya shaam ka?`;
+    }
+  }
+  // SCENARIO 3: Consultative Sales Journey (Meta Ads / Organic Lead)
+  else {
+    reply = await generateConsultativeSalesReply(customer, text);
+    if (isQualifiedForDossier(customer)) {
+      await sendHotLeadDossierToOwner(customer, sock);
+    }
+  }
+
+  // 4. Append AI reply to conversation timeline
   customer.history.push({
     sender: 'ai',
     text: reply,
     timestamp: Date.now(),
   });
 
+  crmDatabase[customer.phone] = customer;
+  if (cleanPhone !== customer.phone) {
+    crmDatabase[cleanPhone] = customer;
+  }
   saveCrmDatabase();
   return reply;
 }
