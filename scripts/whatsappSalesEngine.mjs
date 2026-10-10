@@ -507,12 +507,8 @@ CRITICAL PERSONA RULES:
    • Share it ONLY when a client asks for "packages", "pricing", "quotation", "brochure", "profile", "services list", or "kya kya service dete ho detail me bhejo".
    • When sharing, say: "Humne complete packages & deliverables PDF ready ki hai, aap yahan dekh sakte hain: https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf — isme Starter, Growth aur Premium sabhi detailed hain."
 8. If the user writes random characters, gibberish (e.g. 'xyz', 'test', 'asdf'), do NOT assume or claim anything was booked; politely ask how you can help their business.
-9. End with ONE thoughtful discovery question to understand their business.
-10. MEETING / CALL SCHEDULING FLOW:
-- When a client asks to book a meeting, call, or discuss directly with Mukul ("call schedule karo", "baat karni hai", "meeting fix karo", "call me"):
-  * NEVER confirm an exact slot yourself.
-  * Inform them that you are checking Mukul sir's calendar and will confirm the slot in 5-10 minutes.
-  * Ask whether morning or evening works better for them.`;
+9. CONSULTATIVE APPROACH: Always ask about their business type, their current marketing challenge, or explain how MSR automation works before rushing to book a call. Always end with a discovery question (e.g., "Aapka business kahan located hai?", "Aap abhi ads run kar rahe hain ya organic customers aate hain?").
+10. CALL SCHEDULING: Only if the client specifically asks to talk directly to Mukul on call, acknowledge warmly, tell them you'll arrange a slot with Mukul in 5-10 mins, and ask for their convenient time (morning vs evening).`;
 
   // 1. OpenRouter (Primary High-Intelligence Router)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -745,18 +741,16 @@ export async function handleIncomingSalesMessage(senderJid, text, sock, contactI
   // 3. Multi-agent analysis (Psychology, Intent, Links, Budget)
   analyzeCustomerIntent(customer, text);
 
-  // 4. Generate consultative open-ended sales response & handle meeting intent
-  let reply = '';
+  // 4. Generate consultative open-ended sales response (AI always talks, discovers & consults first)
+  let reply = await generateConsultativeSalesReply(customer, text);
+
+  // If user explicitly asked for meeting/call and AI mentioned scheduling, notify Mukul
   if (isMeetingIntent(text)) {
     customer.meetingState = 'pending_owner_approval';
     customer.stage = 'meeting_requested';
-    reply = `Bilkul! Main Mukul sir ke calendar se slot verify karke aapko agle 5-10 minute me confirm karti hu. 😊\n\nAapke liye morning ka time convenient rahega ya shaam ka?`;
     await sendMeetingRequestToOwner(customer, text, sock);
-  } else {
-    reply = await generateConsultativeSalesReply(customer, text);
-    if (isQualifiedForDossier(customer)) {
-      await sendHotLeadDossierToOwner(customer, sock);
-    }
+  } else if (isQualifiedForDossier(customer)) {
+    await sendHotLeadDossierToOwner(customer, sock);
   }
 
   // 5. Append AI reply to conversation timeline
