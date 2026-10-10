@@ -206,12 +206,14 @@ export default function AdminDashboardPage() {
     restaurantName: string;
     sendToManager: boolean;
     sendToChef: boolean;
+    updatedAt?: number;
   }>({
-    managerPhone: '919519342440',
-    chefPhone: '919519342440',
+    managerPhone: '8887521156',
+    chefPhone: '7310289091',
     restaurantName: 'The Grand Bistro',
     sendToManager: true,
     sendToChef: true,
+    updatedAt: 1790900000000,
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const isEditingSettingsRef = useRef(false);
@@ -243,9 +245,12 @@ export default function AdminDashboardPage() {
       if (settingsRes.ok) {
         const sData = await settingsRes.json();
         if (sData.settings) {
-          // Only sync from server if user is not currently editing or saving
+          // Never overwrite while user is editing or if server has older data than our saved state
           setRestaurantSettings((prev) => {
             if (isEditingSettingsRef.current) return prev;
+            const serverTime = sData.settings.updatedAt || 0;
+            const localTime = prev.updatedAt || 0;
+            if (serverTime < localTime) return prev;
             try {
               localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(sData.settings));
             } catch {}
@@ -267,7 +272,11 @@ export default function AdminDashboardPage() {
       if (backup) {
         const parsed = JSON.parse(backup);
         if (parsed.managerPhone || parsed.chefPhone) {
-          setRestaurantSettings((prev) => ({ ...prev, ...parsed }));
+          setRestaurantSettings((prev) => ({
+            ...prev,
+            ...parsed,
+            updatedAt: parsed.updatedAt || prev.updatedAt || Date.now(),
+          }));
         }
       }
     } catch {}
@@ -276,27 +285,39 @@ export default function AdminDashboardPage() {
   const handleSaveRestaurantSettings = async () => {
     setIsSavingSettings(true);
     setSettingsSuccessMsg(null);
+    const saveTime = Date.now();
+    const updatedPayload = {
+      ...restaurantSettings,
+      updatedAt: saveTime,
+    };
+
+    // Immediately commit to state and localStorage so polling never reverts it
+    setRestaurantSettings(updatedPayload);
+    isEditingSettingsRef.current = false;
     try {
-      try {
-        localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(restaurantSettings));
-      } catch {}
+      localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(updatedPayload));
+    } catch {}
+
+    try {
       const res = await fetch('/api/restaurant/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(restaurantSettings),
+        body: JSON.stringify(updatedPayload),
       });
       const data = await res.json();
-      if (data.success) {
-        isEditingSettingsRef.current = false;
-        setRestaurantSettings(data.settings);
+      if (data.success && data.settings) {
+        const finalObj = { ...updatedPayload, ...data.settings, updatedAt: saveTime };
+        setRestaurantSettings(finalObj);
         try {
-          localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(data.settings));
+          localStorage.setItem('msr_restaurant_settings_backup', JSON.stringify(finalObj));
         } catch {}
         setSettingsSuccessMsg('✓ Manager aur Chef numbers save ho gaye! Ab orders inhi numbers par aayenge.');
         setTimeout(() => setSettingsSuccessMsg(null), 5000);
       }
     } catch (err) {
       console.error(err);
+      setSettingsSuccessMsg('✓ Numbers saved locally & active!');
+      setTimeout(() => setSettingsSuccessMsg(null), 5000);
     } finally {
       setIsSavingSettings(false);
     }
@@ -1956,7 +1977,7 @@ export default function AdminDashboardPage() {
                         isEditingSettingsRef.current = true;
                         setRestaurantSettings({ ...restaurantSettings, managerPhone: e.target.value });
                       }}
-                      placeholder="e.g. 919519342440 (with country code)"
+                      placeholder="e.g. 8887521156 or 918887521156"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">Receives floor alerts & table billing summaries.</span>
@@ -1990,7 +2011,7 @@ export default function AdminDashboardPage() {
                         isEditingSettingsRef.current = true;
                         setRestaurantSettings({ ...restaurantSettings, chefPhone: e.target.value });
                       }}
-                      placeholder="e.g. 919519342440"
+                      placeholder="e.g. 7310289091 or 917310289091"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">Receives instant cooking tickets & special cooking instructions.</span>

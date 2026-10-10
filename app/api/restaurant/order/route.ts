@@ -84,25 +84,35 @@ Kitchen Order Ticket • Automated POS`;
       );
     }
 
+    // Format phone with country code (91) if 10-digits
+    const formatPhone = (p: string) => {
+      let clean = String(p || '').replace(/[^0-9]/g, '');
+      if (clean.length === 10) clean = '91' + clean;
+      return clean;
+    };
+
+    const managerPhoneClean = formatPhone(settings.managerPhone);
+    const chefPhoneClean = formatPhone(settings.chefPhone);
+
     // 2. Send to Manager if enabled
-    if (settings.sendToManager && settings.managerPhone) {
+    if (settings.sendToManager && managerPhoneClean) {
       dispatchPromises.push(
         fetch(`${WORKER_URL}/restaurant/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: settings.managerPhone, message: kitchenTicket }),
+          body: JSON.stringify({ phone: managerPhoneClean, message: kitchenTicket }),
           signal: AbortSignal.timeout(3500),
         }).catch(() => {})
       );
     }
 
     // 3. Send to Chef if enabled (and different from manager)
-    if (settings.sendToChef && settings.chefPhone && settings.chefPhone !== settings.managerPhone) {
+    if (settings.sendToChef && chefPhoneClean && chefPhoneClean !== managerPhoneClean) {
       dispatchPromises.push(
         fetch(`${WORKER_URL}/restaurant/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: settings.chefPhone, message: kitchenTicket }),
+          body: JSON.stringify({ phone: chefPhoneClean, message: kitchenTicket }),
           signal: AbortSignal.timeout(3500),
         }).catch(() => {})
       );
@@ -113,7 +123,7 @@ Kitchen Order Ticket • Automated POS`;
 
     // Fallback Direct WhatsApp Click-to-Chat URL
     const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodeURIComponent(customerMessage)}`;
-    const managerWhatsappUrl = `https://wa.me/${settings.managerPhone}?text=${encodeURIComponent(kitchenTicket)}`;
+    const managerWhatsappUrl = `https://wa.me/${managerPhoneClean}?text=${encodeURIComponent(kitchenTicket)}`;
 
     return NextResponse.json({
       success: true,

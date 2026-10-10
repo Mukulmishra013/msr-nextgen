@@ -1027,6 +1027,70 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
+  // GET /restaurant/settings - Dynamic routing numbers & alert settings
+  if (req.method === 'GET' && url.pathname === '/restaurant/settings') {
+    try {
+      const settingsFile = path.resolve(__dirname, '../data/restaurant-settings.json');
+      if (fs.existsSync(settingsFile)) {
+        const raw = fs.readFileSync(settingsFile, 'utf-8');
+        const settings = JSON.parse(raw);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, settings }));
+        return;
+      }
+    } catch {}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      settings: {
+        managerPhone: '8887521156',
+        chefPhone: '7310289091',
+        restaurantName: 'The Grand Bistro',
+        sendToManager: true,
+        sendToChef: true,
+        updatedAt: Date.now(),
+      },
+    }));
+    return;
+  }
+
+  // POST /restaurant/settings - Save dynamic routing numbers & alert settings
+  if (req.method === 'POST' && url.pathname === '/restaurant/settings') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      try {
+        const updates = JSON.parse(body);
+        const settingsFile = path.resolve(__dirname, '../data/restaurant-settings.json');
+        let current = {
+          managerPhone: '8887521156',
+          chefPhone: '7310289091',
+          restaurantName: 'The Grand Bistro',
+          sendToManager: true,
+          sendToChef: true,
+          updatedAt: Date.now(),
+        };
+        if (fs.existsSync(settingsFile)) {
+          try {
+            current = { ...current, ...JSON.parse(fs.readFileSync(settingsFile, 'utf-8')) };
+          } catch {}
+        }
+        const updated = {
+          ...current,
+          ...updates,
+          updatedAt: updates.updatedAt || Date.now(),
+        };
+        const dir = path.dirname(settingsFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(settingsFile, JSON.stringify(updated, null, 2), 'utf-8');
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, settings: updated }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
     return;
   }
 

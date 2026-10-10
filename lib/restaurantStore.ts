@@ -51,17 +51,19 @@ export interface RestaurantSettings {
   restaurantName: string;
   sendToManager: boolean;
   sendToChef: boolean;
+  updatedAt?: number;
 }
 
 // -----------------------------------------------------------------------------
 // DEFAULT DATA & SEEDS
 // -----------------------------------------------------------------------------
 const DEFAULT_SETTINGS: RestaurantSettings = {
-  managerPhone: '919519342440',
-  chefPhone: '919519342440',
+  managerPhone: '8887521156',
+  chefPhone: '7310289091',
   restaurantName: 'The Grand Bistro',
   sendToManager: true,
   sendToChef: true,
+  updatedAt: 1790900000000,
 };
 
 const SEED_ORDERS: RestaurantOrder[] = [
@@ -419,48 +421,54 @@ export async function sendBirthdayWish(customerId: string): Promise<{ success: b
 export async function getRestaurantSettings(): Promise<RestaurantSettings> {
   initBuffers();
 
-  // Check if disk/tmp has newer version
+  let candidate: RestaurantSettings = {
+    ...DEFAULT_SETTINGS,
+    ...(memorySettings || {}),
+  };
+
+  // 1. Check disk / tmp - accept if newer or equal
   const diskRaw = safeRead(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE);
   if (diskRaw) {
     try {
       const diskParsed = JSON.parse(diskRaw);
-      memorySettings = { ...DEFAULT_SETTINGS, ...memorySettings, ...diskParsed };
+      if ((diskParsed.updatedAt || 0) >= (candidate.updatedAt || 0)) {
+        candidate = { ...candidate, ...diskParsed };
+      }
     } catch {}
   }
 
+  // 2. Check Firestore if configured
   try {
     const app = getFirebaseAdminApp();
     if (app) {
       const db = getFirestore(app);
       const snap = await db.collection('restaurant').doc('settings').get();
       if (snap.exists) {
-        memorySettings = { ...DEFAULT_SETTINGS, ...snap.data() };
+        const firestoreData = snap.data() as RestaurantSettings;
+        if ((firestoreData?.updatedAt || 0) >= (candidate.updatedAt || 0)) {
+          candidate = { ...candidate, ...firestoreData };
+        }
       }
     }
   } catch {}
 
-  return memorySettings || DEFAULT_SETTINGS;
+  memorySettings = candidate;
+  return memorySettings;
 }
 
 export async function saveRestaurantSettings(newSettings: Partial<RestaurantSettings>): Promise<RestaurantSettings> {
   initBuffers();
 
-  // Load latest existing before applying delta
-  const diskRaw = safeRead(PRIMARY_SETTINGS_FILE, TMP_SETTINGS_FILE);
-  let baseSettings = { ...DEFAULT_SETTINGS };
-  if (diskRaw) {
-    try {
-      baseSettings = { ...baseSettings, ...JSON.parse(diskRaw) };
-    } catch {}
-  }
+  const current = await getRestaurantSettings();
+  const updateTimestamp = newSettings.updatedAt || Date.now();
 
   memorySettings = {
-    ...baseSettings,
-    ...(memorySettings || {}),
+    ...current,
     ...newSettings,
+    updatedAt: updateTimestamp,
   };
 
-  // Clean numbers: strip spaces, dashes
+  // Clean numbers: strip non-digits
   if (memorySettings.managerPhone) {
     memorySettings.managerPhone = memorySettings.managerPhone.replace(/[^0-9]/g, '');
   }

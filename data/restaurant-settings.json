@@ -1,7 +1,8 @@
 {
-  "managerPhone": "919519342440",
-  "chefPhone": "919519342440",
+  "managerPhone": "8887521156",
+  "chefPhone": "7310289091",
   "restaurantName": "The Grand Bistro",
   "sendToManager": true,
-  "sendToChef": true
+  "sendToChef": true,
+  "updatedAt": 1791612809515
 }
