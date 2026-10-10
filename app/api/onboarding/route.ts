@@ -60,8 +60,25 @@ export async function POST(req: NextRequest) {
 
     const cleanPhone = String(clientPhone).replace(/\D/g, '');
 
+    // Resolve order UUID if razorpay order string (e.g. order_Tm8WsZPMCGSGQD) was passed
+    let dbOrderId: string | undefined = undefined;
+    if (orderId) {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
+        dbOrderId = orderId;
+      } else {
+        const { data: matchedOrder } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('razorpay_order_id', orderId)
+          .maybeSingle();
+        if (matchedOrder?.id) {
+          dbOrderId = matchedOrder.id;
+        }
+      }
+    }
+
     const record: OnboardingDbRecord = {
-      order_id: orderId || undefined,
+      order_id: dbOrderId,
       client_phone: cleanPhone,
       business_name: businessName.trim(),
       business_type: businessType.trim(),
