@@ -76,6 +76,8 @@ export default function RootLayout({
         <ToastProvider>
           {children}
         </ToastProvider>
+        {/* Official Razorpay Checkout SDK Script */}
+        <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
       </body>
     </html>
   );

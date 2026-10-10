@@ -75,4 +75,6 @@ export type AnalyticsEvent =
   | { name: 'ai_chat_message'; properties?: Record<string, unknown> }
   | { name: 'video_play'; properties?: Record<string, unknown> }
   | { name: 'video_pause'; properties?: Record<string, unknown> }
-  | { name: 'video_toggle_mute'; properties?: Record<string, unknown> };
+  | { name: 'video_toggle_mute'; properties?: Record<string, unknown> }
+  | { name: 'checkout_modal_open'; properties?: Record<string, unknown> }
+  | { name: 'checkout_initiated'; properties?: Record<string, unknown> };

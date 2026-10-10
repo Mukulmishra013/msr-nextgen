@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FLAGSHIP_SERVICES, getWhatsAppUrl, IS_PLACEHOLDER_PHONE } from '@/lib/config';
 import { trackEvent } from '@/lib/analytics';
 import { useToast } from '@/components/Toast';
 import { Megaphone, Bot, CheckCircle2, MessageCircle, ArrowRight } from 'lucide-react';
+import CheckoutModal from '@/components/CheckoutModal';
 
 export default function Services() {
   const { showToast } = useToast();
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const handleServiceClick = (serviceId: string, whatsappMessage: string) => {
     trackEvent('whatsapp_click', { source: `services_${serviceId}`, service: serviceId });
@@ -91,20 +93,29 @@ export default function Services() {
                   </div>
                 </div>
 
-                {/* Card CTA: WhatsApp Chat */}
-                <div className="pt-4 border-t border-slate-100">
+                {/* Card CTAs: 1-Click Activate OR WhatsApp Chat */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      trackEvent('checkout_modal_open', { service: service.id });
+                      setShowCheckout(true);
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm sm:text-base px-5 py-3 rounded-xl sm:rounded-2xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand-600"
+                  >
+                    <span>Instant Activate</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
                   <a
                     href={getWhatsAppUrl(service.whatsappMessage)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => handleServiceClick(service.id, service.whatsappMessage)}
-                    className="w-full inline-flex items-center justify-between bg-slate-900 hover:bg-brand-600 text-white font-bold text-sm sm:text-base tv:text-lg px-6 py-3.5 rounded-xl sm:rounded-2xl transition-all group-hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-600"
+                    className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm sm:text-base px-5 py-3 rounded-xl sm:rounded-2xl transition-all"
                   >
-                    <span className="inline-flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Know More & Discuss on WhatsApp</span>
-                    </span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>WhatsApp</span>
                   </a>
                 </div>
               </div>
@@ -119,6 +130,12 @@ export default function Services() {
           </p>
         </div>
       </div>
+
+      {/* 1-Click Instant Activation Checkout Modal */}
+      <CheckoutModal
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+      />
     </section>
   );
 }
