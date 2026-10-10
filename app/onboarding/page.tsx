@@ -104,15 +104,27 @@ function OnboardingForm() {
           </div>
         </div>
 
-        <a
-          href={`https://wa.me/918887521156?text=Namaste%20Mukul%20sir,%20maine%20onboarding%20form%20submit%20kar%20diya%20hai%20(${businessName})`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-slate-900 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-all"
-        >
-          <Send className="w-5 h-5 text-emerald-400" />
-          <span>Notify Mukul Sir on WhatsApp</span>
-        </a>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a
+            href={`/invoice?orderId=${encodeURIComponent(orderId)}&phone=${encodeURIComponent(clientPhone)}&business=${encodeURIComponent(businessName)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-2xl shadow-md transition-all text-sm"
+          >
+            <FileText className="w-4 h-4" />
+            <span>View & Download Official Receipt</span>
+          </a>
+
+          <a
+            href={`https://wa.me/918887521156?text=Namaste%20Mukul%20sir,%20maine%20onboarding%20form%20submit%20kar%20diya%20hai%20(${encodeURIComponent(businessName)})`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3.5 rounded-2xl transition-all text-sm"
+          >
+            <Send className="w-4 h-4 text-emerald-400" />
+            <span>Notify Mukul Sir on WhatsApp</span>
+          </a>
+        </div>
       </div>
     );
   }

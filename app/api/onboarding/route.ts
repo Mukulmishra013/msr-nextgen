@@ -101,6 +101,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Auto-dispatch confirmation & official receipt link to client on WhatsApp
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://msr-nextgen-live.vercel.app';
+      const receiptUrl = `${siteUrl}/invoice?orderId=${encodeURIComponent(orderId || data?.id)}&phone=${encodeURIComponent(cleanPhone)}&business=${encodeURIComponent(businessName)}`;
+
+      const clientMsg = `Namaste ${businessName}! 🎉\n\nMSR Next Gen me aapka swagat hai. Aapka onboarding details aur service activation queue me successfully record ho gaya hai.\n\n📄 *Official Payment Receipt & Tax Invoice*:\n${receiptUrl}\n\n⚙️ *Setup Status*: Hamari growth team & Maya AI aapke assets review karke testing shuru kar rahi hai. Mukul sir jald hi aapse direct connect karenge!\n\nKoi bhi sawal ho toh aap is number par direct reply kar sakte hain. 😊`;
+
+      // Import dynamic to avoid cycle
+      const { sendWhatsAppMessage } = await import('@/lib/whatsappSend');
+      await sendWhatsAppMessage(cleanPhone, clientMsg);
+    } catch (waErr) {
+      console.warn('[WhatsApp Auto-Receipt Dispatch Notice]', waErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Onboarding details submitted successfully. Service setup queued.',
