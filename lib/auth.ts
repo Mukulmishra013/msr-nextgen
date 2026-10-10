@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { supabaseAdmin } from './supabase';
 
 // Secret key for HMAC token signing
 const SESSION_SECRET = process.env.ADMIN_SECRET_KEY || 'msr_admin_2026_growth_secure_token_secret_9988';
@@ -51,8 +52,8 @@ function saveClientAccountsDb(db: Record<string, ClientAccount>): void {
     const dir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(CLIENT_ACCOUNTS_FILE, JSON.stringify(db, null, 2));
-  } catch (err) {
-    console.error('[Client Accounts Save Error]:', err);
+  } catch {
+    // Fail silently on serverless read-only filesystems (Vercel)
   }
 }
 
@@ -159,7 +160,7 @@ export function verifyOnboardingToken(token: string | undefined | null): Onboard
   }
 }
 
-export function createClientAccount(params: {
+export async function createClientAccount(params: {
   name: string;
   businessName: string;
   category?: string;
@@ -167,16 +168,40 @@ export function createClientAccount(params: {
   phone: string;
   password: string;
   city?: string;
-}): { success: boolean; account?: ClientAccount; error?: string } {
-  const db = getClientAccountsDb();
+}): Promise<{ success: boolean; account?: ClientAccount; error?: string }> {
   const cleanPhone = String(params.phone).replace(/\D/g, '');
   const cleanEmail = params.email.trim().toLowerCase();
 
-  const existing = Object.values(db).find(
+  // 1. Check existing in Supabase leads table
+  try {
+    const { data: existingLead } = await supabaseAdmin
+      .from('leads')
+      .select('phone, website_url, notes')
+      .or(`phone.eq.${cleanPhone},website_url.eq.${cleanEmail}`)
+      .limit(1);
+
+    if (existingLead && existingLead.length > 0) {
+      // Check if this lead already has a client account with password
+      const lead = existingLead[0];
+      if (lead.notes) {
+        try {
+          const parsed = JSON.parse(lead.notes);
+          if (parsed.passwordHash) {
+            return { success: false, error: 'Is email ya mobile number se account pehle se bana hua hai. Login karein.' };
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase Account Check Notice]:', err);
+  }
+
+  // Check local file as secondary fallback
+  const localDb = getClientAccountsDb();
+  const existingLocal = Object.values(localDb).find(
     (a) => a.email.toLowerCase() === cleanEmail || a.phone.replace(/\D/g, '') === cleanPhone
   );
-
-  if (existing) {
+  if (existingLocal) {
     return { success: false, error: 'Is email ya mobile number se account pehle se bana hua hai. Login karein.' };
   }
 
@@ -198,22 +223,80 @@ export function createClientAccount(params: {
     onboardingCompleted: false,
   };
 
-  db[id] = account;
-  saveClientAccountsDb(db);
+  // 2. Persist to Supabase leads table (Primary Cloud DB)
+  try {
+    const { error: upsertErr } = await supabaseAdmin.from('leads').upsert(
+      {
+        phone: cleanPhone,
+        name: account.name,
+        business_name: account.businessName,
+        category: account.category,
+        stage: 'client_account',
+        website_url: cleanEmail,
+        notes: JSON.stringify(account),
+      },
+      { onConflict: 'phone' }
+    );
+    if (upsertErr) {
+      console.error('[Supabase Save Error]:', upsertErr);
+    }
+  } catch (err) {
+    console.error('[Supabase Save Exception]:', err);
+  }
+
+  // 3. Persist to local file as well
+  localDb[id] = account;
+  saveClientAccountsDb(localDb);
+
   return { success: true, account };
 }
 
-export function authenticateClient(
+export async function authenticateClient(
   identifier: string,
   password: string
-): { success: boolean; account?: ClientAccount; error?: string } {
-  const db = getClientAccountsDb();
+): Promise<{ success: boolean; account?: ClientAccount; error?: string }> {
   const cleanIdentifier = identifier.trim().toLowerCase();
   const cleanPhone = identifier.replace(/\D/g, '');
 
-  const account = Object.values(db).find(
-    (a) => a.email.toLowerCase() === cleanIdentifier || (cleanPhone && a.phone.replace(/\D/g, '') === cleanPhone)
-  );
+  let account: ClientAccount | null = null;
+
+  // 1. Search in Supabase leads table
+  try {
+    let query = supabaseAdmin.from('leads').select('*');
+    if (cleanIdentifier.includes('@')) {
+      query = query.eq('website_url', cleanIdentifier);
+    } else if (cleanPhone && cleanPhone.length >= 10) {
+      query = query.eq('phone', cleanPhone);
+    } else {
+      query = query.or(`phone.eq.${cleanIdentifier},website_url.eq.${cleanIdentifier}`);
+    }
+
+    const { data: leads, error } = await query.limit(1);
+    if (!error && leads && leads.length > 0) {
+      const lead = leads[0];
+      if (lead.notes) {
+        try {
+          const parsed = JSON.parse(lead.notes);
+          if (parsed.passwordHash && parsed.salt) {
+            account = parsed as ClientAccount;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase Client Auth Notice]:', err);
+  }
+
+  // 2. Fallback to local file if not found in Supabase
+  if (!account) {
+    const db = getClientAccountsDb();
+    const local = Object.values(db).find(
+      (a) => a.email.toLowerCase() === cleanIdentifier || (cleanPhone && a.phone.replace(/\D/g, '') === cleanPhone)
+    );
+    if (local) {
+      account = local;
+    }
+  }
 
   if (!account) {
     return { success: false, error: 'Account nahi mila. Kripya check karein ya naya account banayein.' };
@@ -227,24 +310,75 @@ export function authenticateClient(
   return { success: true, account };
 }
 
-export function getClientAccountById(id: string): ClientAccount | null {
-  const db = getClientAccountsDb();
-  return db[id] || null;
+export async function getClientAccountById(id: string): Promise<ClientAccount | null> {
+  // 1. Check local file
+  const localDb = getClientAccountsDb();
+  if (localDb[id]) return localDb[id];
+
+  // 2. Check Supabase
+  try {
+    const { data: leads } = await supabaseAdmin
+      .from('leads')
+      .select('*')
+      .ilike('notes', `%"id":"${id}"%`)
+      .limit(1);
+
+    if (leads && leads.length > 0 && leads[0].notes) {
+      const parsed = JSON.parse(leads[0].notes);
+      return parsed as ClientAccount;
+    }
+  } catch {}
+
+  return null;
 }
 
-export function getClientAccountByPhone(phone: string): ClientAccount | null {
-  const db = getClientAccountsDb();
+export async function getClientAccountByPhone(phone: string): Promise<ClientAccount | null> {
   const cleanPhone = String(phone).replace(/\D/g, '');
-  return Object.values(db).find((a) => a.phone.replace(/\D/g, '') === cleanPhone) || null;
+
+  // 1. Check Supabase
+  try {
+    const { data: leads } = await supabaseAdmin
+      .from('leads')
+      .select('*')
+      .eq('phone', cleanPhone)
+      .limit(1);
+
+    if (leads && leads.length > 0 && leads[0].notes) {
+      const parsed = JSON.parse(leads[0].notes);
+      if (parsed.passwordHash) {
+        return parsed as ClientAccount;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback to local file
+  const localDb = getClientAccountsDb();
+  return Object.values(localDb).find((a) => a.phone.replace(/\D/g, '') === cleanPhone) || null;
 }
 
-export function linkOrderToClientAccount(clientId: string, orderId: string): void {
-  const db = getClientAccountsDb();
-  if (db[clientId]) {
-    if (!db[clientId].orders) db[clientId].orders = [];
-    if (!db[clientId].orders?.includes(orderId)) {
-      db[clientId].orders?.push(orderId);
-      saveClientAccountsDb(db);
+export async function linkOrderToClientAccount(clientIdOrPhone: string, orderId: string): Promise<void> {
+  const client = (await getClientAccountById(clientIdOrPhone)) || (await getClientAccountByPhone(clientIdOrPhone));
+  if (client) {
+    if (!client.orders) client.orders = [];
+    if (!client.orders.includes(orderId)) {
+      client.orders.push(orderId);
+      // Persist update in Supabase
+      try {
+        await supabaseAdmin.from('leads').upsert(
+          {
+            phone: client.phone,
+            notes: JSON.stringify(client),
+          },
+          { onConflict: 'phone' }
+        );
+      } catch {}
+
+      // Persist update in local file
+      const db = getClientAccountsDb();
+      if (db[client.id]) {
+        db[client.id] = client;
+        saveClientAccountsDb(db);
+      }
     }
   }
 }

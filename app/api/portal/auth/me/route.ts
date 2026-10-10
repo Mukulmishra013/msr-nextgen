@@ -13,7 +13,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const client = getClientAccountById(session.userId) || (session.phone ? getClientAccountByPhone(session.phone) : null);
+    let client = (await getClientAccountById(session.userId)) || (session.phone ? await getClientAccountByPhone(session.phone) : null);
+    if (!client && session.role === 'client') {
+      client = {
+        id: session.userId,
+        name: session.name || 'Client',
+        businessName: session.businessName || 'Business',
+        category: 'Partner',
+        email: session.email,
+        phone: session.phone || '',
+        passwordHash: '',
+        salt: '',
+        createdAt: Date.now(),
+      };
+    }
     if (!client) {
       return NextResponse.json({ success: false, error: 'Client account not found' }, { status: 404 });
     }

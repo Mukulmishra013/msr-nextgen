@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = authenticateClient(identifier, password);
+    const result = await authenticateClient(identifier, password);
     if (!result.success || !result.account) {
       return NextResponse.json({ success: false, error: result.error || 'Login failed' }, { status: 401 });
     }

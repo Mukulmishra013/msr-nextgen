@@ -172,9 +172,9 @@ export async function POST(req: NextRequest) {
 
     // Link order to client account if exists
     try {
-      const existingClient = getClientAccountByPhone(cleanPhone);
+      const existingClient = await getClientAccountByPhone(cleanPhone);
       if (existingClient && (dbOrderId || orderId)) {
-        linkOrderToClientAccount(existingClient.id, dbOrderId || orderId);
+        await linkOrderToClientAccount(existingClient.id, dbOrderId || orderId);
       }
     } catch {}
 

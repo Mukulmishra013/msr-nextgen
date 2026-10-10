@@ -58,7 +58,7 @@ export default function ClientSignupPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        router.push('/portal');
+        window.location.href = '/portal';
       } else {
         setError(data.error || 'Signup failed. Kripya details check karein.');
       }

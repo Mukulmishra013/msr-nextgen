@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = createClientAccount({
+    const result = await createClientAccount({
       name,
       businessName,
       category,

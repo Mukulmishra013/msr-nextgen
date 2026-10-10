@@ -12,5 +12,21 @@
     "createdAt": 1791636719515,
     "orders": [],
     "onboardingCompleted": false
+  },
+  "cli_1791638303534_a936c1ae": {
+    "id": "cli_1791638303534_a936c1ae",
+    "name": "Persistent Test User",
+    "businessName": "Apex Innovations",
+    "category": "Healthcare",
+    "email": "persistent_tester@msrnextgen.com",
+    "phone": "9876543210",
+    "passwordHash": "e55d6eab0ca0a69b3496fa5f358d9bad495d492fd71d1d0347acd82b7076d7072561d81674162b68cdb22fa2f0c3c7eae8bff12ee7d7db3d0cbae9ce590ab21f",
+    "salt": "7fc59a8c348c793c7f0c7bb0743aad6f",
+    "city": "Mumbai",
+    "createdAt": 1791638303534,
+    "orders": [
+      "order_test_persistent_999"
+    ],
+    "onboardingCompleted": false
   }
 }
