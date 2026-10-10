@@ -32,6 +32,10 @@ import {
   updateLeadRecord,
   deleteLeadRecord,
   confirmClientMeetingSlot,
+  rescheduleClientMeeting,
+  delayClientMeeting,
+  cancelClientMeeting,
+  processMeeting20mReminders,
   resolveLidToPhone,
   isOwnerNumber,
   cleanPhoneNumber,
@@ -431,6 +435,66 @@ async function startAdminWhatsAppSocket() {
           const targetRawPhone = slotMatch[1];
           const slotDetails = slotMatch[2].trim();
           const result = await confirmClientMeetingSlot(targetRawPhone, slotDetails, adminSock);
+          await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
+          return;
+        }
+
+        // OWNER COMMAND: !delay <Client Phone> <Minutes> (or +10 <Phone>, +20 <Phone>)
+        if (isOwner && (trimmedText.startsWith('!delay') || /^\+\d{1,3}/.test(trimmedText))) {
+          let targetRawPhone = null;
+          let minutes = 10;
+
+          const delayMatch = trimmedText.match(/^!delay\s+(\+?\d[\d\s-]{8,15})\s+(\d{1,3})(?:\s*m(?:in(?:ute)?s?)?)?$/i);
+          const plusMatch = trimmedText.match(/^\+(\d{1,3})(?:\s*m(?:in(?:ute)?s?)?)?\s+(\+?\d[\d\s-]{8,15})$/i);
+
+          if (delayMatch) {
+            targetRawPhone = delayMatch[1];
+            minutes = parseInt(delayMatch[2], 10);
+          } else if (plusMatch) {
+            minutes = parseInt(plusMatch[1], 10);
+            targetRawPhone = plusMatch[2];
+          } else {
+            await enqueueAdminMessage(adminSock, senderJid, {
+              text: `⚠️ *Format Galat Hai!*\n\nSahi format:\n*!delay <Customer Phone> <Minutes>*\n(Ya: *+10 <Customer Phone>* / *+20 <Customer Phone>*)\n\nExample:\n!delay 8887521156 10\n+20 8887521156`,
+            });
+            return;
+          }
+
+          const result = await delayClientMeeting(targetRawPhone, minutes, adminSock);
+          await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
+          return;
+        }
+
+        // OWNER COMMAND: !reschedule <Client Phone> <New Date & Time>
+        if (isOwner && trimmedText.startsWith('!reschedule')) {
+          const reschedMatch = trimmedText.match(/^!reschedule\s+(\+?\d[\d\s-]{8,15})\s+(.+)$/i);
+          if (!reschedMatch) {
+            await enqueueAdminMessage(adminSock, senderJid, {
+              text: `⚠️ *Format Galat Hai!*\n\nSahi format:\n*!reschedule <Customer Phone> <Naya Time/Date>*\n\nExample:\n!reschedule 8887521156 Kal shaam 6:00 PM\n!reschedule 8887521156 12 Oct 4:00 PM`,
+            });
+            return;
+          }
+
+          const targetRawPhone = reschedMatch[1];
+          const newSlotDetails = reschedMatch[2].trim();
+          const result = await rescheduleClientMeeting(targetRawPhone, newSlotDetails, adminSock);
+          await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
+          return;
+        }
+
+        // OWNER COMMAND: !cancel <Client Phone> [Reason]
+        if (isOwner && trimmedText.startsWith('!cancel')) {
+          const cancelMatch = trimmedText.match(/^!cancel\s+(\+?\d[\d\s-]{8,15})(?:\s+(.+))?$/i);
+          if (!cancelMatch) {
+            await enqueueAdminMessage(adminSock, senderJid, {
+              text: `⚠️ *Format Galat Hai!*\n\nSahi format:\n*!cancel <Customer Phone> [Reason]*\n\nExample:\n!cancel 8887521156\n!cancel 8887521156 Emergency client meeting`,
+            });
+            return;
+          }
+
+          const targetRawPhone = cancelMatch[1];
+          const reason = cancelMatch[2] ? cancelMatch[2].trim() : '';
+          const result = await cancelClientMeeting(targetRawPhone, reason, adminSock);
           await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
           return;
         }
@@ -1222,6 +1286,23 @@ server.listen(PORT, () => {
       });
     } catch {}
   }, 8 * 60 * 1000);
+
+  // ===========================================================================
+  // 100% AUTONOMOUS CRON 0: 20-MINUTE PRE-MEETING REMINDER ENGINE (Every 60 Seconds)
+  // Sends notification to both Client and Mukul 20 mins prior to any scheduled meeting
+  // ===========================================================================
+  setInterval(async () => {
+    try {
+      if (adminSock && adminStatus === 'connected') {
+        const result = await processMeeting20mReminders(adminSock);
+        if (result?.sent > 0) {
+          console.log(`[Meeting 20m Reminder Cron]: Dispatched ${result.sent} reminder(s) successfully.`);
+        }
+      }
+    } catch (err) {
+      console.error('[Meeting Reminder Cron Error]:', err.message);
+    }
+  }, 60 * 1000);
 
   // ===========================================================================
   // 100% AUTONOMOUS CRON 1: AGENCY LEADS FOLLOW-UP & NURTURE BRAIN (Every 30 Mins)

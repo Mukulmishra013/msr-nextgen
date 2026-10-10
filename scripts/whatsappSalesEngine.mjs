@@ -1,5 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const CRM_FILE = path.resolve(__dirname, '../data/whatsapp_sales_crm.json');
 
 // =============================================================================
 // MSR NEXT GEN — MULTI-AGENT CONSULTATIVE SALES MIND & CRM ENGINE
@@ -28,7 +33,6 @@ function loadLocalEnv() {
 }
 loadLocalEnv();
 
-const CRM_FILE = path.join(process.cwd(), 'data', 'whatsapp_sales_crm.json');
 export const MUKUL_PRIMARY_ALERT_PHONE = '918887521156'; // User's requested WhatsApp for lead summaries
 export const MUKUL_BACKUP_ALERT_PHONE = '919519342440';
 
@@ -618,6 +622,163 @@ _Dispatched via MSR Sales Mind_`;
   }
 }
 
+// =============================================================================
+// NATURAL LANGUAGE SLOT PARSER & CALENDAR TIME ENGINE
+// =============================================================================
+export function parseSlotToTimestamp(slotText, baseTime = Date.now()) {
+  if (!slotText || typeof slotText !== 'string') return null;
+
+  const text = slotText.toLowerCase().trim();
+
+  // Get current date components in IST
+  const now = new Date(baseTime);
+  const istFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  });
+
+  const parts = istFormatter.formatToParts(now);
+  const getPart = (type) => parseInt(parts.find((p) => p.type === type)?.value || '0', 10);
+
+  const curYear = getPart('year');
+  const curMonth = getPart('month') - 1; // 0-indexed
+  const curDay = getPart('day');
+
+  let dayOffset = 0; // 0 = today, 1 = tomorrow, 2 = day after tomorrow
+
+  if (text.includes('parso') || text.includes('day after tomorrow')) {
+    dayOffset = 2;
+  } else if (text.includes('kal') || text.includes('tomorrow')) {
+    dayOffset = 1;
+  } else if (text.includes('aaj') || text.includes('today')) {
+    dayOffset = 0;
+  }
+
+  // Check specific day of week
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const hindiDays = ['ravivar', 'somvar', 'mangalvar', 'budhvar', 'guruvar', 'shukravar', 'shanivar'];
+  for (let i = 0; i < 7; i++) {
+    if (text.includes(dayNames[i]) || text.includes(hindiDays[i])) {
+      const curDayOfWeek = new Date(Date.UTC(curYear, curMonth, curDay + dayOffset)).getUTCDay();
+      let diff = i - curDayOfWeek;
+      if (diff <= 0) diff += 7;
+      dayOffset += diff;
+      break;
+    }
+  }
+
+  let hour = null;
+  let minute = 0;
+  let isPm = false;
+  let isAm = false;
+
+  if (
+    text.includes('pm') ||
+    text.includes('shaam') ||
+    text.includes('dopahar') ||
+    text.includes('raat') ||
+    text.includes('evening') ||
+    text.includes('afternoon') ||
+    text.includes('night')
+  ) {
+    isPm = true;
+  }
+
+  if (text.includes('am') || text.includes('subah') || text.includes('morning')) {
+    isAm = true;
+  }
+
+  const colonTimeMatch = text.match(/(\d{1,2})[:.](\d{2})(?:\s*(am|pm))?/i);
+  const bajeOrAmpmMatch = text.match(/(\d{1,2})\s*(?:am|pm|baje|o'clock|\s*(?:am|pm))/i);
+  const anyNumberMatch = text.match(/\b(\d{1,2})\b/);
+
+  if (colonTimeMatch) {
+    hour = parseInt(colonTimeMatch[1], 10);
+    minute = parseInt(colonTimeMatch[2], 10);
+    if (colonTimeMatch[3]) {
+      if (colonTimeMatch[3].toLowerCase() === 'pm') isPm = true;
+      if (colonTimeMatch[3].toLowerCase() === 'am') isAm = true;
+    }
+  } else if (bajeOrAmpmMatch) {
+    hour = parseInt(bajeOrAmpmMatch[1], 10);
+    minute = 0;
+  } else if (anyNumberMatch) {
+    hour = parseInt(anyNumberMatch[1], 10);
+    minute = 0;
+  }
+
+  if (hour === null || isNaN(hour)) {
+    return null;
+  }
+
+  if (isPm && hour < 12) {
+    hour += 12;
+  } else if (isAm && hour === 12) {
+    hour = 0;
+  } else if (!isPm && !isAm) {
+    if (hour >= 1 && hour <= 6) {
+      hour += 12;
+    }
+  }
+
+  const targetUtcMs = Date.UTC(curYear, curMonth, curDay + dayOffset, hour - 5, minute - 30, 0);
+
+  if (dayOffset === 0 && !text.includes('aaj') && !text.includes('today')) {
+    if (targetUtcMs <= baseTime) {
+      return targetUtcMs + 24 * 60 * 60 * 1000;
+    }
+  }
+
+  return targetUtcMs;
+}
+
+export function formatTimestampToSlot(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+}
+
+// Conflict Checker
+export function checkMeetingSlotConflict(cleanPhone, slotDetails, targetTimestamp) {
+  if (Object.keys(crmDatabase).length === 0) {
+    loadCrmDatabase();
+  }
+  return Object.values(crmDatabase).find((c) => {
+    if (c.phone === cleanPhone) return false;
+    if (c.meetingState === 'confirmed') {
+      // 1. Precise epoch conflict (within 30 mins)
+      if (targetTimestamp && c.meetingTimestamp) {
+        const diffMs = Math.abs(c.meetingTimestamp - targetTimestamp);
+        if (diffMs < 30 * 60 * 1000) {
+          return true;
+        }
+      }
+      // 2. String comparison fallback
+      if (c.meetingSlot && slotDetails) {
+        const normNew = slotDetails.toLowerCase().replace(/\s+/g, ' ').trim();
+        const normOld = c.meetingSlot.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (normNew === normOld || normOld.includes(normNew) || normNew.includes(normOld)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  });
+}
+
 // Confirm meeting slot from Mukul's !slot command
 export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
   loadCrmDatabase();
@@ -634,17 +795,8 @@ export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
     customer = getOrCreateCustomerRecord(cleanPhone);
   }
 
-  // Check Calendar for existing meeting conflicts / overlaps
-  const existingMeeting = Object.values(crmDatabase).find((c) => {
-    if (c.phone === cleanPhone) return false;
-    if (c.meetingState === 'confirmed' && c.meetingSlot) {
-      // Normalize both strings to compare (e.g. "10 baje", "10:00", "kal 10 baje")
-      const normNew = slotDetails.toLowerCase().replace(/\s+/g, ' ').trim();
-      const normOld = c.meetingSlot.toLowerCase().replace(/\s+/g, ' ').trim();
-      return normNew === normOld || normOld.includes(normNew) || normNew.includes(normOld);
-    }
-    return false;
-  });
+  const parsedTimestamp = parseSlotToTimestamp(slotDetails);
+  const existingMeeting = checkMeetingSlotConflict(cleanPhone, slotDetails, parsedTimestamp);
 
   if (existingMeeting) {
     return {
@@ -655,13 +807,16 @@ export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
 
   customer.meetingState = 'confirmed';
   customer.meetingSlot = slotDetails;
+  customer.meetingTimestamp = parsedTimestamp;
+  customer.reminder20mSent = false;
   customer.stage = 'meeting_scheduled';
   customer.lastActive = Date.now();
 
+  const formattedDisplay = parsedTimestamp ? ` (${formatTimestampToSlot(parsedTimestamp)})` : '';
   const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
 
 Mukul sir ke sath aapki 1-on-1 Business Growth Audit Call confirm ho gayi hai:
-🕒 *Confirmed Slot*: *${slotDetails}*
+🕒 *Confirmed Slot*: *${slotDetails}*${formattedDisplay}
 
 Mukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi specific report ya questions discuss karne ho, toh aap yahan share kar sakte hain! 🚀`;
 
@@ -670,6 +825,11 @@ Mukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi
     text: clientMsg,
     timestamp: Date.now(),
   });
+
+  crmDatabase[customer.phone] = customer;
+  if (cleanPhone !== customer.phone) {
+    crmDatabase[cleanPhone] = customer;
+  }
   saveCrmDatabase();
 
   if (sock) {
@@ -683,8 +843,314 @@ Mukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi
 
   return {
     success: true,
-    message: `✅ *Meeting Confirmed!*\n\nClient (+${customer.phone}) ko slot "${slotDetails}" WhatsApp par send kar diya gaya hai aur CRM me stage *meeting_scheduled* set ho gaya hai.`,
+    message: `✅ *Meeting Confirmed!*\n\nClient (+${customer.phone}) ko slot "${slotDetails}" WhatsApp par send kar diya gaya hai aur CRM me stage *meeting_scheduled* set ho gaya hai.\n⏰ Meeting se 20 minute pehle aap dono ko automatic reminder ping aayega.`,
   };
+}
+
+// Reschedule meeting slot from Mukul's !reschedule command
+export async function rescheduleClientMeeting(targetPhone, newSlotDetails, sock) {
+  loadCrmDatabase();
+  const cleanPhone = cleanPhoneNumber(targetPhone);
+  let customer = crmDatabase[cleanPhone];
+
+  if (!customer) {
+    const raw = String(targetPhone).replace(/[^0-9]/g, '');
+    const entry = Object.values(crmDatabase).find((c) => c.phone.includes(raw) || raw.includes(c.phone));
+    if (entry) customer = entry;
+  }
+
+  if (!customer) {
+    return {
+      success: false,
+      message: `⚠️ *Client Record Nahi Mila!* (+${cleanPhone}) CRM me register nahi hai.`,
+    };
+  }
+
+  const parsedTimestamp = parseSlotToTimestamp(newSlotDetails);
+  const existingMeeting = checkMeetingSlotConflict(cleanPhone, newSlotDetails, parsedTimestamp);
+
+  if (existingMeeting) {
+    return {
+      success: false,
+      message: `⚠️ *MEETING SLOT CONFLICT!* ⚠️\n\nMukul sir, slot "${newSlotDetails}" par pehle se meeting booked hai:\n👤 *Client*: ${existingMeeting.name || 'Client'} (+${existingMeeting.phone})\n🏢 *Business*: ${existingMeeting.businessName || 'Business'}\n\nKripya koi doosra slot dekar try karein:\n*!reschedule ${targetPhone} <Naya Slot>*`,
+    };
+  }
+
+  customer.meetingState = 'confirmed';
+  customer.meetingSlot = newSlotDetails;
+  customer.meetingTimestamp = parsedTimestamp;
+  customer.reminder20mSent = false;
+  customer.stage = 'meeting_scheduled';
+  customer.lastActive = Date.now();
+
+  const formattedDisplay = parsedTimestamp ? ` (${formatTimestampToSlot(parsedTimestamp)})` : '';
+  const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
+
+Mukul sir ke schedule update ke anusaar aapki 1-on-1 Business Growth Audit Call reschedule kar di gayi hai:
+🕒 *New Scheduled Slot*: *${newSlotDetails}*${formattedDisplay}
+
+Mukul sir (+91 88875 21156) is naye time par aapse connect karenge. Kripya apna calendar note kar lein! 🚀`;
+
+  customer.history.push({
+    sender: 'ai',
+    text: clientMsg,
+    timestamp: Date.now(),
+  });
+
+  crmDatabase[customer.phone] = customer;
+  if (cleanPhone !== customer.phone) {
+    crmDatabase[cleanPhone] = customer;
+  }
+  saveCrmDatabase();
+
+  if (sock) {
+    try {
+      const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
+      await sock.sendMessage(clientJid, { text: clientMsg });
+    } catch (err) {
+      console.error('[Failed to send reschedule to client]:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `✅ *Meeting Rescheduled!*\n\nClient (+${customer.phone}) ko updated slot "${newSlotDetails}" bhej diya gaya hai aur calendar update ho gaya hai.`,
+  };
+}
+
+// Delay meeting by N minutes from Mukul's !delay command
+export async function delayClientMeeting(targetPhone, delayMinutes, sock) {
+  loadCrmDatabase();
+  const cleanPhone = cleanPhoneNumber(targetPhone);
+  let customer = crmDatabase[cleanPhone];
+
+  if (!customer) {
+    const raw = String(targetPhone).replace(/[^0-9]/g, '');
+    const entry = Object.values(crmDatabase).find((c) => c.phone.includes(raw) || raw.includes(c.phone));
+    if (entry) customer = entry;
+  }
+
+  if (!customer) {
+    return {
+      success: false,
+      message: `⚠️ *Client Record Nahi Mila!* (+${cleanPhone}) CRM me register nahi hai.`,
+    };
+  }
+
+  let baseTs = customer.meetingTimestamp;
+  if (!baseTs && customer.meetingSlot) {
+    baseTs = parseSlotToTimestamp(customer.meetingSlot);
+  }
+  if (!baseTs) {
+    baseTs = Date.now();
+  }
+
+  const newTimestamp = baseTs + delayMinutes * 60 * 1000;
+  const newSlotStr = formatTimestampToSlot(newTimestamp);
+
+  const existingMeeting = checkMeetingSlotConflict(cleanPhone, newSlotStr, newTimestamp);
+  if (existingMeeting) {
+    return {
+      success: false,
+      message: `⚠️ *MEETING SLOT CONFLICT!* ⚠️\n\nMukul sir, ${delayMinutes} minute delay karne par slot "${newSlotStr}" par doosri meeting booked hai:\n👤 *Client*: ${existingMeeting.name || 'Client'} (+${existingMeeting.phone})\n\nKripya specific slot choose karein:\n*!reschedule ${targetPhone} <Naya Time>*`,
+    };
+  }
+
+  customer.meetingState = 'confirmed';
+  customer.meetingTimestamp = newTimestamp;
+  customer.meetingSlot = `${newSlotStr} (+${delayMinutes}m delay)`;
+  if (newTimestamp - Date.now() > 20 * 60 * 1000) {
+    customer.reminder20mSent = false;
+  }
+  customer.lastActive = Date.now();
+
+  const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
+
+Mukul sir ke schedule update ke anusaar aapki call *${delayMinutes} minute* delay hui hai:
+🕒 *Updated Meeting Time*: *${newSlotStr}*
+
+Mukul sir (+91 88875 21156) is naye time par aapse connect karenge. Thank you for your patience! 🚀`;
+
+  customer.history.push({
+    sender: 'ai',
+    text: clientMsg,
+    timestamp: Date.now(),
+  });
+
+  crmDatabase[customer.phone] = customer;
+  if (cleanPhone !== customer.phone) {
+    crmDatabase[cleanPhone] = customer;
+  }
+  saveCrmDatabase();
+
+  if (sock) {
+    try {
+      const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
+      await sock.sendMessage(clientJid, { text: clientMsg });
+    } catch (err) {
+      console.error('[Failed to send delay notice to client]:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `✅ *Meeting Delayed by ${delayMinutes} Mins!*\n\nClient (+${customer.phone}) ko updated time "${newSlotStr}" bhej diya gaya hai.`,
+  };
+}
+
+// Cancel meeting from Mukul's !cancel command
+export async function cancelClientMeeting(targetPhone, reason, sock) {
+  loadCrmDatabase();
+  const cleanPhone = cleanPhoneNumber(targetPhone);
+  let customer = crmDatabase[cleanPhone];
+
+  if (!customer) {
+    const raw = String(targetPhone).replace(/[^0-9]/g, '');
+    const entry = Object.values(crmDatabase).find((c) => c.phone.includes(raw) || raw.includes(c.phone));
+    if (entry) customer = entry;
+  }
+
+  if (!customer) {
+    return {
+      success: false,
+      message: `⚠️ *Client Record Nahi Mila!* (+${cleanPhone}) CRM me register nahi hai.`,
+    };
+  }
+
+  customer.meetingState = 'cancelled';
+  customer.stage = 'cancelled';
+  customer.reminder20mSent = true;
+  customer.lastActive = Date.now();
+
+  const reasonText = reason ? `\n*Reason*: ${reason}` : '';
+  const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
+
+Ek unavoidable schedule update ke karan Mukul sir ke sath aapki scheduled call filhal cancel / postpone karni padi hai.${reasonText}
+
+Hamari team jald hi aapse fresh slot schedule karne ke liye sampark karegi. Inconvenience ke liye kshama chahte hain! 🙏`;
+
+  customer.history.push({
+    sender: 'ai',
+    text: clientMsg,
+    timestamp: Date.now(),
+  });
+
+  crmDatabase[customer.phone] = customer;
+  if (cleanPhone !== customer.phone) {
+    crmDatabase[cleanPhone] = customer;
+  }
+  saveCrmDatabase();
+
+  if (sock) {
+    try {
+      const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
+      await sock.sendMessage(clientJid, { text: clientMsg });
+    } catch (err) {
+      console.error('[Failed to send cancel notice to client]:', err);
+    }
+  }
+
+  return {
+    success: true,
+    message: `❌ *Meeting Cancelled!*\n\nClient (+${customer.phone}) ki meeting cancel kar di gayi hai aur unhe WhatsApp par inform kar diya gaya hai.`,
+  };
+}
+
+// 20-Minute Pre-Meeting Automated Reminder Engine
+export async function processMeeting20mReminders(sock) {
+  loadCrmDatabase();
+  const now = Date.now();
+  let sentCount = 0;
+
+  for (const customer of Object.values(crmDatabase)) {
+    if (customer.meetingState !== 'confirmed') continue;
+    if (customer.reminder20mSent) continue;
+
+    let targetTs = customer.meetingTimestamp;
+    if (!targetTs && customer.meetingSlot) {
+      targetTs = parseSlotToTimestamp(customer.meetingSlot);
+      if (targetTs) {
+        customer.meetingTimestamp = targetTs;
+      }
+    }
+
+    if (!targetTs) continue;
+
+    const diffMs = targetTs - now;
+    // Trigger when meeting is between 0 and 22 minutes away
+    if (diffMs > 0 && diffMs <= 22 * 60 * 1000) {
+      const clientMsg = `Namaste ${customer.name || 'ji'}! 🙏
+
+Mukul sir (Founder, MSR Next Gen) ke sath aapki 1-on-1 Business Growth Audit Call agle *20 minutes* me shuru hone wali hai! ⏰
+
+🕒 *Scheduled Time*: *${customer.meetingSlot}*
+📱 *Founder WhatsApp*: +91 88875 21156
+
+Mukul sir direct call par aapse connect karenge. Kripya ready rahein aur agar koi specific website ya marketing query discuss karni ho toh yahan share kar sakte hain! 🚀`;
+
+      const mukulMsg = `🔔 *20-MINUTE MEETING REMINDER!* 🔔
+━━━━━━━━━━━━━━━━━━━━
+Mukul sir, aapki 1-on-1 client call agle *20 minute* me start hone wali hai:
+
+👤 *Client*: ${customer.name || 'Client'} (+${customer.phone})
+🏢 *Business*: ${customer.businessName || 'Business Owner'} (${customer.category || 'General'})
+🕒 *Scheduled Slot*: *${customer.meetingSlot}*
+
+⚡ *Instant Commands (Copy & Send)*:
+• Delay 10 min: *!delay ${customer.phone} 10*
+• Delay 20 min: *!delay ${customer.phone} 20*
+• Reschedule: *!reschedule ${customer.phone} <Naya Time>*
+• Cancel: *!cancel ${customer.phone}*
+━━━━━━━━━━━━━━━━━━━━
+👉 *Direct Call*: https://wa.me/${customer.phone}`;
+
+      // 1. Send to Client
+      if (sock) {
+        try {
+          const clientJid = customer.senderJid || `${customer.phone}@s.whatsapp.net`;
+          await sock.sendMessage(clientJid, { text: clientMsg });
+          customer.history.push({
+            sender: 'ai',
+            text: `[20m Meeting Reminder]: ${clientMsg}`,
+            timestamp: now,
+          });
+        } catch (err) {
+          console.error(`[Failed to send 20m reminder to client ${customer.phone}]:`, err.message);
+        }
+      }
+
+      // 2. Send to Mukul via Baileys socket
+      const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
+      const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
+
+      if (sock && typeof sock.sendMessage === 'function') {
+        try { await sock.sendMessage(primaryJid, { text: mukulMsg }); } catch {}
+        if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
+          try { await sock.sendMessage(backupJid, { text: mukulMsg }); } catch {}
+        }
+      }
+
+      // 3. Dual-delivery fallback via Render Worker
+      try {
+        await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: MUKUL_PRIMARY_ALERT_PHONE, message: mukulMsg }),
+          signal: AbortSignal.timeout(6000),
+        });
+      } catch {}
+
+      customer.reminder20mSent = true;
+      sentCount++;
+      console.log(`[20m Meeting Reminder Dispatched for client ${customer.phone}]`);
+    }
+  }
+
+  if (sentCount > 0) {
+    saveCrmDatabase();
+  }
+
+  return { sent: sentCount };
 }
 
 // =============================================================================
