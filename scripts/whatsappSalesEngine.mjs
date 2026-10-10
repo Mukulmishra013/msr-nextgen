@@ -261,10 +261,11 @@ export function isMeetingIntent(text) {
   if (!text) return false;
   const t = text.toLowerCase();
   return (
-    /(?:call|meeting|baat|connect|audit|slot)\s*(?:karo|karni|karein|schedule|book|fix|time|kab|chahiye|hoga|karna)/i.test(t) ||
-    /(?:free 15-minute|growth audit|1-on-1|zoom|google meet)/i.test(t) ||
-    /(?:aaj call|kal call|kab baat|phone call|call plan)/i.test(t)
-  );
+    /(?:call|meeting|baat|connect|audit|slot|appointment)/i.test(t) &&
+    /(?:karo|karni|karein|schedule|book|fix|time|kab|chahiye|hoga|karna|karlo|kar|sakta|sakte|dena|de do|bhejo)/i.test(t)
+  ) ||
+  /(?:free 15-minute|growth audit|1-on-1|zoom|google meet|phone call)/i.test(t) ||
+  /(?:aaj call|kal call|kab baat|call me|book call|book meeting)/i.test(t);
 }
 
 // =============================================================================
@@ -594,11 +595,24 @@ _Dispatched via MSR Sales Mind_`;
 
   try {
     const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
-    await sock.sendMessage(primaryJid, { text: alertMessage });
-    if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
-      const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
-      await sock.sendMessage(backupJid, { text: alertMessage });
+    const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
+
+    if (sock && typeof sock.sendMessage === 'function') {
+      try { await sock.sendMessage(primaryJid, { text: alertMessage }); } catch {}
+      if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
+        try { await sock.sendMessage(backupJid, { text: alertMessage }); } catch {}
+      }
     }
+
+    // Secondary Cloud Delivery Fallback via Render Worker to guarantee delivery
+    try {
+      await fetch('https://msr-whatsapp-bot.onrender.com/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: MUKUL_PRIMARY_ALERT_PHONE, message: alertMessage }),
+        signal: AbortSignal.timeout(6000),
+      });
+    } catch {}
   } catch (err) {
     console.error('[Meeting Alert to Mukul failed]:', err);
   }
