@@ -113,9 +113,11 @@ export function resolveLidToPhone(lidOrPhone, authDir = ADMIN_AUTH_DIR) {
 }
 
 // Get or initialize customer record
-export function getOrCreateCustomerRecord(phone, pushName = '') {
-  const cleanPhone = cleanPhoneNumber(phone);
-  if (isOwnerNumber(cleanPhone)) {
+export function getOrCreateCustomerRecord(phone, pushName = '', isTestSimulation = false) {
+  const isTest = isTestSimulation || String(phone).includes('_test');
+  const cleanPhone = isTest ? String(phone).trim() : cleanPhoneNumber(phone);
+
+  if (isOwnerNumber(cleanPhone) && !isTest) {
     return {
       phone: cleanPhone,
       name: 'Mukul Mishra (Owner)',
@@ -126,7 +128,7 @@ export function getOrCreateCustomerRecord(phone, pushName = '') {
 
   if (!crmDatabase[cleanPhone]) {
     crmDatabase[cleanPhone] = {
-      phone: cleanPhone,
+      phone: isTest ? cleanPhoneNumber(cleanPhone) : cleanPhone,
       name: pushName || '',
       businessName: '',
       category: 'Unclassified',
@@ -136,11 +138,12 @@ export function getOrCreateCustomerRecord(phone, pushName = '') {
       auditFindings: '',
       stage: 'discovery',
       meetingState: 'none',
-      psychologyNotes: 'New inbound lead. Needs discovery.',
+      psychologyNotes: isTest ? 'Interactive Test Simulation' : 'New inbound lead. Needs discovery.',
       history: [],
       lastActive: Date.now(),
       alertSentToOwner: false,
       notes: '',
+      isTestSimulation: isTest,
     };
     saveCrmDatabase();
   } else if (pushName && !crmDatabase[cleanPhone].name) {
@@ -260,27 +263,27 @@ export function extractBudget(text) {
   return null;
 }
 
-// Meeting Intent Detector (Comprehensive Indian Hindi & English)
+// Meeting Intent Detector (Comprehensive Indian Hindi & English with Phonetic Typo Tolerance)
 export function isMeetingIntent(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
 
-  // 1. Explicit Direct Keywords
-  if (/(?:book call|book meeting|schedule call|schedule meeting|need call|need meeting)/i.test(t)) return true;
-  if (/(?:call me|call karo|call kijiye|call karlo|call kar|call karni|call karna|call par baat|call pe baat)/i.test(t)) return true;
-  if (/(?:baat karni|baat karna|baat karni thi|baat karni h|baat ho sakti|baat karni hai|baat karein)/i.test(t)) return true;
-  if (/(?:meeting chahiye|meeting karni|meeting karna|meeting karlo|meeting fix|meeting schedule|meeting kar do)/i.test(t)) return true;
-  if (/(?:slot chahiye|slot de do|slot do|slot book|slot fix|slot confirm|slot milega|slot de|slot bhej)/i.test(t)) return true;
-  if (/(?:appointment chahiye|appointment book|appointment fix|appointment schedule)/i.test(t)) return true;
-  if (/(?:zoom|google meet|1-on-1|growth audit|audit call|voice call|phone call|strategy call)/i.test(t)) return true;
+  // 1. Explicit Direct Keywords & Common Typos
+  if (/(?:book\s*call|book\s*meeting|book\s*meting|schedule\s*call|schedule\s*meeting|need\s*call|need\s*meeting)/i.test(t)) return true;
+  if (/(?:call\s*me|call\s*karo|call\s*kijiye|call\s*karlo|call\s*kar|call\s*karni|call\s*karna|call\s*par\s*baat|call\s*pe\s*baat)/i.test(t)) return true;
+  if (/(?:baat\s*karni|baat\s*karna|baat\s*karni\s*thi|baat\s*karni\s*h|baat\s*ho\s*sakti|baat\s*karni\s*hai|baat\s*karein)/i.test(t)) return true;
+  if (/(?:meeting\s*chahiye|meting\s*chahiye|meeting\s*karni|meting\s*karni|meeting\s*karna|meting\s*karna|meeting\s*karlo|meting\s*karlo|meeting\s*fix|meeting\s*schedule|meeting\s*kar\s*do|meting\s*book)/i.test(t)) return true;
+  if (/(?:slot\s*chahiye|shlot\s*chahiye|slot\s*de\s*do|slot\s*do|slot\s*book|shlot\s*book|slot\s*fix|slot\s*confirm|slot\s*milega|slot\s*de|slot\s*bhej)/i.test(t)) return true;
+  if (/(?:appointment\s*chahiye|apointment\s*chahiye|appointment\s*book|apoitnent\s*book|appointment\s*fix|appointment\s*schedule)/i.test(t)) return true;
+  if (/(?:zoom|google\s*meet|1-on-1|growth\s*audit|audit\s*call|audiot\s*call|voice\s*call|phone\s*call|strategy\s*call)/i.test(t)) return true;
 
-  // 2. Combination of Action + Topic
-  const hasTopic = /(?:call|meeting|baat|connect|audit|slot|appointment|phone|discuss)/i.test(t);
-  const hasAction = /(?:karo|karein|karna|karni|karlo|kar|sakta|sakte|sakti|chahiye|schedule|book|fix|arrange|do|de do|bhejo|kab|time|hoga|milega|thi|h)/i.test(t);
+  // 2. Phonetic Combination of Topic + Action (Handles 'meting', 'apoitnent', 'audiot', 'shlot', 'cal', 'buk')
+  const hasTopic = /(?:m(?:ee|e|ea|i)t+i?ng|ap+o[iy]?nt?m?e?n?t?|c[ao]l+|[ao]d[io]*t|s[h]?l?o[te]*|b[a]+t|connect|discuss)/i.test(t);
+  const hasAction = /(?:b[ou]+k|sch?ed|k[a]?r|ch[a]?h[i]?ye|f[i]?x|arrang|m[i]?leg|d[e]?|hoga|kab|time|bat[ao]|chahiye)/i.test(t);
   if (hasTopic && hasAction) return true;
 
   // 3. Short colloquial Hindi
-  if (/(?:kab baat|kab call|call par|phone par|call pe|phone pe|call kab)/i.test(t)) return true;
+  if (/(?:kab\s*baat|kab\s*call|call\s*par|phone\s*par|call\s*pe|phone\s*pe|call\s*kab)/i.test(t)) return true;
 
   return false;
 }
@@ -693,9 +696,11 @@ _Dispatched via MSR Sales Mind_`;
   try {
     const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
     const backupJid = `${MUKUL_BACKUP_ALERT_PHONE}@s.whatsapp.net`;
+    const ownerLidJid = '33032778027137@lid';
 
     if (sock && typeof sock.sendMessage === 'function') {
       try { await sock.sendMessage(primaryJid, { text: alertMessage }); } catch {}
+      try { await sock.sendMessage(ownerLidJid, { text: alertMessage }); } catch {}
       if (MUKUL_BACKUP_ALERT_PHONE !== MUKUL_PRIMARY_ALERT_PHONE) {
         try { await sock.sendMessage(backupJid, { text: alertMessage }); } catch {}
       }
@@ -877,6 +882,10 @@ export async function confirmClientMeetingSlot(targetPhone, slotDetails, sock) {
   loadCrmDatabase();
   const cleanPhone = cleanPhoneNumber(targetPhone);
   let customer = crmDatabase[cleanPhone];
+
+  if (!customer) {
+    customer = crmDatabase[`${cleanPhone}_test`];
+  }
 
   if (!customer) {
     const raw = String(targetPhone).replace(/[^0-9]/g, '');
@@ -1347,7 +1356,7 @@ _Dispatched via MSR Multi-Agent Sales Mind_`;
 // =============================================================================
 // MAIN ENTRY POINT FOR INCOMING WHATSAPP MESSAGES
 // =============================================================================
-export async function handleIncomingSalesMessage(senderJid, text, sock, contactInfo = {}) {
+export async function handleIncomingSalesMessage(senderJid, text, sock, contactInfo = {}, isTestSimulation = false) {
   let rawPhone = senderJid.split('@')[0];
   let resolvedPhone = rawPhone;
 
@@ -1360,17 +1369,23 @@ export async function handleIncomingSalesMessage(senderJid, text, sock, contactI
   }
 
   const cleanPhone = cleanPhoneNumber(resolvedPhone);
+  const isOwner = isOwnerNumber(cleanPhone) || isOwnerNumber(resolvedPhone);
 
-  // If sender is Mukul (Owner), do not treat as lead
-  if (isOwnerNumber(cleanPhone)) {
-    return 'Namaste Mukul sir! MSR Sales AI is running smoothly.';
+  // If sender is Mukul (Owner) and not in test simulation
+  if (isOwner && !isTestSimulation) {
+    return 'Namaste Mukul sir! MSR Sales AI is running smoothly. Customer flow test karne ke liye seedha customer message bhejein ya "!test <message>" likhein! 🚀';
   }
 
-  const pushName = contactInfo.pushName || sock?.chats?.[senderJid]?.name || '';
+  const pushName = contactInfo.pushName || sock?.chats?.[senderJid]?.name || (isOwner ? 'Mukul Test' : '');
+  const recordKey = isOwner ? `${cleanPhone}_test` : cleanPhone;
 
   // 1. Get or create customer memory profile
-  const customer = getOrCreateCustomerRecord(cleanPhone, pushName);
+  const customer = getOrCreateCustomerRecord(recordKey, pushName);
   customer.senderJid = senderJid;
+  if (isOwner) {
+    customer.isTestSimulation = true;
+    customer.phone = cleanPhone;
+  }
   if (resolvedPhone.length > 13) {
     customer.isLid = true;
   }

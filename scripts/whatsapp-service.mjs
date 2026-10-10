@@ -395,9 +395,7 @@ async function startAdminWhatsAppSocket() {
           return;
         }
 
-        const effectiveText = isFromMe
-          ? trimmedText.replace(/^!test\s*/i, '').trim() || 'hi'
-          : trimmedText;
+        const effectiveText = trimmedText.replace(/^!test\s*/i, '').trim() || 'hi';
 
         const messageId = msg.key.id;
         if (adminProcessedMsgIds.has(messageId)) return;
@@ -521,14 +519,32 @@ async function startAdminWhatsAppSocket() {
           return;
         }
 
-        // If sender is Mukul (Owner), do not treat as lead
-        if (isOwner) {
+        if (isOwner && (trimmedText.toLowerCase() === '!help' || trimmedText.toLowerCase() === '!commands')) {
+          const helpMsg = `🛠️ *MUKUL ADMIN WHATSAPP CONTROLS*
+━━━━━━━━━━━━━━━━━━━━
+📅 *Meeting Actions*:
+• *!slot <Phone> <Time>* — Confirm client slot
+• *!reschedule <Phone> <New Time>* — Change slot
+• *!delay <Phone> <Minutes>* (or *+10 <Phone>*) — Delay ping
+• *!cancel <Phone> [Reason]* — Cancel meeting
+
+🤖 *Bot Controls*:
+• *!pause* / *!resume* — Freeze/Unfreeze AI replies
+• *!learn <Fact>* — Train Maya with new business knowledge
+
+🧪 *Live Testing*:
+Aap apne isi WhatsApp se Maya ko koi bhi message (jaise "meeting book karni hai", "pricing kya hai", ya "!test ...") bhej kar poora client flow live test kar sakte hain!
+━━━━━━━━━━━━━━━━━━━━`;
+          await enqueueAdminMessage(adminSock, senderJid, { text: helpMsg });
           return;
         }
 
-        if (isAutoReplyPaused) return;
+        // If sender is Mukul (Owner), enable Interactive Test Simulation Mode!
+        const isMukulTesting = isOwner;
 
-        if (memory.optedOutNumbers.includes(senderClean)) return;
+        if (isAutoReplyPaused && !isMukulTesting) return;
+
+        if (memory.optedOutNumbers.includes(senderClean) && !isMukulTesting) return;
         if (trimmedText.toLowerCase() === 'stop' || trimmedText.toLowerCase() === 'mat bhejo') {
           memory.optedOutNumbers.push(senderClean);
           saveAgentMemory(memory);
@@ -540,7 +556,7 @@ async function startAdminWhatsAppSocket() {
 
         const now = Date.now();
         const lastReplied = lastAdminReplyPerUser.get(senderJid) || 0;
-        if (now - lastReplied < 4000) return;
+        if (now - lastReplied < 3000) return;
         lastAdminReplyPerUser.set(senderJid, now);
 
         try {
@@ -553,7 +569,13 @@ async function startAdminWhatsAppSocket() {
           participant: msg.key.participant || msg.participant || '',
         };
 
-        const aiReply = await handleIncomingSalesMessage(senderJid, effectiveText, adminSock, contactInfo);
+        const aiReply = await handleIncomingSalesMessage(
+          senderJid,
+          effectiveText,
+          adminSock,
+          contactInfo,
+          isMukulTesting
+        );
         await enqueueAdminMessage(adminSock, senderJid, { text: aiReply });
         console.log(`[Admin Multi-Agent Sales Replied to ${senderJid}]: "${aiReply.substring(0, 60)}..."`);
       } catch (err) {

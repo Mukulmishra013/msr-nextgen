@@ -1,1 +1,90 @@
-{}
+{
+  "918887521156": {
+    "phone": "918887521156",
+    "name": "Mukul Mishra",
+    "businessName": "MSR Next Gen",
+    "category": "Unclassified",
+    "budget": "",
+    "painPoint": "",
+    "websiteUrl": "",
+    "auditFindings": "",
+    "stage": "meeting_scheduled",
+    "meetingState": "confirmed",
+    "psychologyNotes": "Interactive Test Simulation",
+    "history": [
+      {
+        "sender": "customer",
+        "text": "meting apoitnent audiot karne ke liye book karo",
+        "timestamp": 1791633739498
+      },
+      {
+        "sender": "ai",
+        "text": "Zaroor Mukul Mishra ji! Call plan karne se pehle kripya aapke *Business / Brand ka Naam* aur category bata dijiye taaki hum accurate audit plan ready kar sakein? 😊",
+        "timestamp": 1791633739514
+      },
+      {
+        "sender": "customer",
+        "text": "Mera naam Mukul Mishra hai aur business MSR Next Gen",
+        "timestamp": 1791633739519
+      },
+      {
+        "sender": "ai",
+        "text": "Thank you Mukul Mishra (MSR Next Gen)! 🙏 Aapki details note ho gayi hain.\n\nMain Mukul sir (+91 88875 21156) se next available calendar slot check karke agle 5 minute me aapko WhatsApp par confirm karti hu! 🚀",
+        "timestamp": 1791633741302
+      },
+      {
+        "sender": "ai",
+        "text": "Namaste Mukul Mishra! 🙏\n\nMukul sir ke sath aapki 1-on-1 Business Growth Audit Call confirm ho gayi hai:\n🕒 *Confirmed Slot*: *Kal shaam 5:00 PM* (11 Oct, 5:00 pm)\n\nMukul sir (+91 88875 21156) directly is time par aapse connect karenge. Agar koi specific report ya questions discuss karne ho, toh aap yahan share kar sakte hain! 🚀",
+        "timestamp": 1791633741363
+      }
+    ],
+    "lastActive": 1791633741361,
+    "alertSentToOwner": false,
+    "notes": "",
+    "isTestSimulation": true,
+    "senderJid": "918887521156@s.whatsapp.net",
+    "meetingSlot": "Kal shaam 5:00 PM",
+    "meetingTimestamp": 1791718200000,
+    "reminder20mSent": false
+  },
+  "918887521156_test": {
+    "phone": "918887521156",
+    "name": "Mukul Mishra",
+    "businessName": "MSR Next Gen",
+    "category": "Unclassified",
+    "budget": "",
+    "painPoint": "",
+    "websiteUrl": "",
+    "auditFindings": "",
+    "stage": "meeting_requested",
+    "meetingState": "pending_owner_approval",
+    "psychologyNotes": "Interactive Test Simulation",
+    "history": [
+      {
+        "sender": "customer",
+        "text": "meting apoitnent audiot karne ke liye book karo",
+        "timestamp": 1791633739498
+      },
+      {
+        "sender": "ai",
+        "text": "Zaroor Mukul Mishra ji! Call plan karne se pehle kripya aapke *Business / Brand ka Naam* aur category bata dijiye taaki hum accurate audit plan ready kar sakein? 😊",
+        "timestamp": 1791633739514
+      },
+      {
+        "sender": "customer",
+        "text": "Mera naam Mukul Mishra hai aur business MSR Next Gen",
+        "timestamp": 1791633739519
+      },
+      {
+        "sender": "ai",
+        "text": "Thank you Mukul Mishra (MSR Next Gen)! 🙏 Aapki details note ho gayi hain.\n\nMain Mukul sir (+91 88875 21156) se next available calendar slot check karke agle 5 minute me aapko WhatsApp par confirm karti hu! 🚀",
+        "timestamp": 1791633741302
+      }
+    ],
+    "lastActive": 1791633739525,
+    "alertSentToOwner": false,
+    "notes": "",
+    "isTestSimulation": true,
+    "senderJid": "918887521156@s.whatsapp.net"
+  }
+}
