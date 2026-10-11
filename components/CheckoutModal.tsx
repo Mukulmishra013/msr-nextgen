@@ -1,43 +1,90 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ShieldCheck, CheckCircle2, Loader2, Sparkles, CreditCard, Lock } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, Loader2, Sparkles, CreditCard, Lock, Zap } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultPackageId?: 'starter' | 'growth' | 'premium';
+  defaultPackageId?: string;
 }
 
 const PACKAGES = [
   {
+    id: 'business-website',
+    name: 'Business Website',
+    category: 'Website Launch',
+    amount: 14999,
+    setupFee: 0,
+    highlights: ['Professional responsive website', 'Contact forms & WhatsApp chat', 'Essential On-Page SEO & analytics', '100% mobile-optimized'],
+    popular: false,
+    billingNote: 'one-time',
+  },
+  {
+    id: 'whatsapp-starter',
+    name: 'WhatsApp AI Starter',
+    category: 'Automation',
+    amount: 14999,
+    setupFee: 0,
+    highlights: ['24/7 AI chatbot engine (3s reply)', 'FAQs & lead capture automation', 'Defined setup & testing scope', 'Instant hot lead founder alerts'],
+    popular: true,
+    billingNote: 'setup fee',
+  },
+  {
+    id: 'shopify-launch',
+    name: 'Shopify Launch Pack',
+    category: 'E-Commerce',
+    amount: 19999,
+    setupFee: 0,
+    highlights: ['Complete Shopify store setup', 'Product catalogue & collections', 'Razorpay & shipping integration', 'Conversion-optimized cart'],
+    popular: false,
+    billingNote: 'one-time',
+  },
+  {
+    id: 'gbp-growth',
+    name: 'GBP Audit & Optimization',
+    category: 'Local Business Growth',
+    amount: 2999,
+    originalAmount: 4999,
+    setupFee: 0,
+    highlights: ['Google Business Profile audit', 'Local SEO & keyword optimization', 'Geo-tagged photos & listing boost', 'Review booster QR strategy'],
+    popular: false,
+    billingNote: 'one-time',
+  },
+  {
     id: 'starter',
     name: 'Starter (Visibility)',
+    category: 'Monthly Retainer',
     amount: 6999,
     setupFee: 2999,
-    highlights: ['Google Maps SEO + 4 Reels', 'Reviews Booster QR + WhatsApp', 'Monthly Report'],
+    highlights: ['Google Maps SEO + 4 Reels', 'Reviews Booster QR + WhatsApp', 'Monthly Performance Report'],
     popular: false,
+    billingNote: '/mo',
   },
   {
     id: 'growth',
     name: 'Growth (Customer Magnet)',
+    category: 'Monthly Retainer',
     amount: 14999,
     setupFee: 4999,
     highlights: ['Local Meta & Google Ads', '8 High-Impact Reels', '24/7 AI WhatsApp Inquiry Bot', 'Loyalty & Win-Back Offers'],
-    popular: true,
+    popular: false,
+    billingNote: '/mo',
   },
   {
     id: 'premium',
-    name: 'Premium (Full Automation VIP)',
+    name: 'Premium (Full VIP)',
+    category: 'Monthly Retainer',
     amount: 24999,
     setupFee: 9999,
     highlights: ['Growth + 12 Reels + Shoot', 'Custom Web / Booking Page', 'AI Calling Agent + Dedicated Manager'],
     popular: false,
+    billingNote: '/mo',
   },
 ];
 
-export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'growth' }: CheckoutModalProps) {
+export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'whatsapp-starter' }: CheckoutModalProps) {
   const router = useRouter();
   const [selectedPkg, setSelectedPkg] = useState<string>(defaultPackageId);
   const [clientPhone, setClientPhone] = useState('');
@@ -46,9 +93,15 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'gro
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  useEffect(() => {
+    if (defaultPackageId) {
+      setSelectedPkg(defaultPackageId);
+    }
+  }, [defaultPackageId, isOpen]);
+
   if (!isOpen) return null;
 
-  const activePackage = PACKAGES.find((p) => p.id === selectedPkg) || PACKAGES[1];
+  const activePackage = PACKAGES.find((p) => p.id === selectedPkg) || PACKAGES[0];
 
   const handlePayNow = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,7 +246,7 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'gro
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
               Select Package
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
               {PACKAGES.map((pkg) => {
                 const isSelected = selectedPkg === pkg.id;
                 return (
@@ -201,19 +254,26 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'gro
                     key={pkg.id}
                     type="button"
                     onClick={() => setSelectedPkg(pkg.id)}
-                    className={`p-3.5 rounded-2xl border text-left transition-all relative ${
+                    className={`p-3 rounded-2xl border text-left transition-all relative ${
                       isSelected
                         ? 'border-brand-600 bg-brand-50/70 shadow-sm ring-2 ring-brand-600'
                         : 'border-slate-200 bg-slate-50 hover:bg-white'
                     }`}
                   >
                     {pkg.popular && (
-                      <span className="absolute -top-2.5 right-3 text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                      <span className="absolute -top-2 right-2.5 text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white px-2 py-0.5 rounded-full">
                         Popular
                       </span>
                     )}
-                    <div className="font-bold text-xs text-slate-900 leading-tight">{pkg.name}</div>
-                    <div className="text-base font-extrabold text-brand-700 mt-1">₹{pkg.amount.toLocaleString('en-IN')}<span className="text-[10px] text-slate-500 font-normal">/mo</span></div>
+                    <div className="text-[10px] font-semibold text-brand-600 uppercase tracking-wider">{pkg.category}</div>
+                    <div className="font-bold text-xs text-slate-900 leading-tight mt-0.5">{pkg.name}</div>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      {pkg.originalAmount && (
+                        <span className="text-xs text-slate-400 line-through font-semibold">₹{pkg.originalAmount.toLocaleString('en-IN')}</span>
+                      )}
+                      <span className="text-sm font-extrabold text-brand-700">₹{pkg.amount.toLocaleString('en-IN')}</span>
+                      <span className="text-[10px] text-slate-500 font-normal">({pkg.billingNote})</span>
+                    </div>
                   </button>
                 );
               })}

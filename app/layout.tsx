@@ -71,8 +71,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`scroll-smooth ${inter.variable}`}>
-      <body className="min-h-screen flex flex-col font-sans bg-surface-50 text-slate-900 antialiased selection:bg-brand-600 selection:text-white">
+    <html lang="en" className={`scroll-smooth overflow-x-hidden w-full max-w-full ${inter.variable}`}>
+      <body className="min-h-screen flex flex-col font-sans bg-surface-50 text-slate-900 antialiased selection:bg-brand-600 selection:text-white overflow-x-hidden w-full max-w-full">
         <ToastProvider>
           {children}
         </ToastProvider>

@@ -4,6 +4,28 @@ import { supabaseAdmin, OrderDbRecord } from '@/lib/supabase';
 
 // Approved Catalogue & Immutable Server Prices (Frontend price is NEVER trusted)
 const APPROVED_PACKAGES: Record<string, { name: string; amount: number; description: string }> = {
+  // Flagship Packages
+  'business-website': {
+    name: 'Business Website (Website Launch)',
+    amount: 14999, // ₹14,999
+    description: 'Professional responsive business website, contact forms, essential on-page SEO, analytics',
+  },
+  'whatsapp-starter': {
+    name: 'WhatsApp AI Starter (Automation)',
+    amount: 14999, // ₹14,999
+    description: 'Basic WhatsApp automation, FAQs, lead capture and defined setup/testing scope',
+  },
+  'shopify-launch': {
+    name: 'Shopify Launch Pack (E-Commerce)',
+    amount: 19999, // ₹19,999
+    description: 'Store setup, product catalogue configuration, essential checkout setup & shipping',
+  },
+  'gbp-growth': {
+    name: 'GBP Audit & Optimization (Local Business Growth)',
+    amount: 2999, // ₹2,999 (Special discounted price, down from ₹4,999)
+    description: 'Google Business Profile audit, optimization recommendations and agreed listing improvements',
+  },
+  // Legacy / Retainer Packages
   starter: {
     name: 'Starter (Visibility Package)',
     amount: 6999, // ₹6,999

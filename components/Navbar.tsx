@@ -30,22 +30,22 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-surface-200 transition-all">
-      <div className="max-w-7xl tv:max-w-tv-container mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full max-w-full bg-white/95 backdrop-blur-md border-b border-surface-200 transition-all overflow-x-hidden">
+      <div className="max-w-7xl tv:max-w-tv-container mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 w-full">
         {/* Brand Logo & Name */}
         <Link
           href="/"
           onClick={() => setMobileMenuOpen(false)}
-          className="flex items-center gap-2.5 group focus:outline-none focus:ring-2 focus:ring-brand-600 rounded-lg"
+          className="flex items-center gap-2 group focus:outline-none focus:ring-2 focus:ring-brand-600 rounded-lg shrink-0"
         >
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white flex items-center justify-center font-black text-lg sm:text-xl shadow-sm group-hover:shadow-md transition-shadow">
+          <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white flex items-center justify-center font-black text-base sm:text-xl shadow-sm group-hover:shadow-md transition-shadow shrink-0">
             M
           </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-slate-900 text-lg sm:text-xl tracking-tight leading-none group-hover:text-brand-600 transition-colors">
+          <div className="flex flex-col min-w-0">
+            <span className="font-extrabold text-slate-900 text-base sm:text-xl tracking-tight leading-none group-hover:text-brand-600 transition-colors whitespace-nowrap">
               MSR NEXT GEN
             </span>
-            <span className="text-[11px] sm:text-xs text-slate-500 font-medium tracking-normal mt-0.5">
+            <span className="hidden sm:inline text-[11px] sm:text-xs text-slate-500 font-medium tracking-normal mt-0.5 whitespace-nowrap">
               Growth & AI Agency
             </span>
           </div>
@@ -74,6 +74,9 @@ export default function Navbar() {
           <a href="/#services" className="hover:text-brand-600 transition-colors">
             Services
           </a>
+          <a href="/#rate-card" className="hover:text-brand-600 transition-colors">
+            Rate Card
+          </a>
           <a href="/#brands" className="hover:text-brand-600 transition-colors">
             Brands We Manage
           </a>
@@ -89,14 +92,16 @@ export default function Navbar() {
         </nav>
 
         {/* Right Header Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Client Portal Access */}
           <Link
             href="/portal"
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+            className="inline-flex items-center gap-1 sm:gap-2 bg-slate-900 hover:bg-slate-800 text-white px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+            title="Client Portal"
           >
             <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-400 shrink-0" />
-            <span>Client Portal</span>
+            <span className="hidden sm:inline">Client Portal</span>
+            <span className="sm:hidden text-[11px]">Portal</span>
           </Link>
 
           {/* Quick WhatsApp Action */}
@@ -105,18 +110,19 @@ export default function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 cursor-pointer"
+            className="inline-flex items-center gap-1 sm:gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm tv:text-base font-bold shadow-sm hover:shadow-md active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 cursor-pointer"
+            title="Chat on WhatsApp"
           >
-            <MessageCircle className="w-4 h-4 fill-white shrink-0" />
-            <span className="hidden xs:inline">WhatsApp Us</span>
-            <span className="xs:hidden">Chat</span>
+            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0" />
+            <span className="hidden sm:inline">WhatsApp Us</span>
+            <span className="sm:hidden text-[11px]">Chat</span>
           </a>
 
           {/* Mobile Hamburger Menu Toggle Button */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-slate-700 hover:text-brand-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-600"
+            className="md:hidden p-1.5 sm:p-2 rounded-xl text-slate-700 hover:text-brand-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-600 shrink-0"
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
           >
@@ -208,8 +214,17 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
             >
-              <span>Services</span>
-              <span className="text-xs text-slate-400 font-normal">Paid Ads & AI Bots</span>
+              <span>Flagship Offers</span>
+              <span className="text-xs text-slate-400 font-normal">Top 4 Packages</span>
+            </a>
+
+            <a
+              href="/#rate-card"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
+            >
+              <span>Service Rate Card</span>
+              <span className="text-xs text-brand-600 font-semibold">11 Categories (₹)</span>
             </a>
 
             <a
