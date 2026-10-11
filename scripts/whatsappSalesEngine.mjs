@@ -263,27 +263,54 @@ export function extractBudget(text) {
   return null;
 }
 
+// Check if user is objecting to a call/meeting or asking questions first
+export function isMeetingObjection(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  // "abhi call nahi", "no call", "call nahi chahiye", "pehle batao", "phone mat karo", "call badme", "sirf rate batao", "pehle price"
+  if (/(?:abhi\s*(?:call|phone|meeting|baat)\s*nah?i|no\s*(?:call|meeting)|call\s*nah?i\s*chahiye|phone\s*nah?i\s*karna|pehle\s*(?:bas\s*)?(?:itna\s*)?bata|sirf\s*rate|sirf\s*price|call\s*baad\s*me|call\s*badme|pehle\s*detail|pehle\s*jankari|pehle\s*batao|call\s*mat)/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+// Check if user asks if Maya is AI or human
+export function isAiIdentityQuery(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  return /(?:ai\s*ho|insaan\s*ho|human\s*ho|robot\s*ho|bot\s*ho|real\s*person|sach\s*batana|are\s*you\s*(?:an?\s*)?(?:ai|robot|bot|human))/i.test(t);
+}
+
 // Meeting Intent Detector (Comprehensive Indian Hindi & English with Phonetic Typo Tolerance)
 export function isMeetingIntent(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
 
+  // If user explicitly says NO to call or asks questions first, DO NOT treat as meeting intent!
+  if (isMeetingObjection(t)) return false;
+  if (isAiIdentityQuery(t)) return false;
+
+  // If asking general questions like "kya services", "kitna charge", "price range", "kya kar sakte ho", DO NOT treat as meeting intent!
+  if (/(?:kya\s*(?:kya\s*)?services|kya\s*charge|kitna\s*(?:charge|kharcha|paisa|rate|price|cost)|price\s*range|budget\s*kam|kya\s*(?:aap\s*)?kar\s*sakte)/i.test(t)) {
+    return false;
+  }
+
   // 1. Explicit Direct Keywords & Common Typos
   if (/(?:book\s*call|book\s*meeting|book\s*meting|schedule\s*call|schedule\s*meeting|need\s*call|need\s*meeting)/i.test(t)) return true;
-  if (/(?:call\s*me|call\s*karo|call\s*kijiye|call\s*karlo|call\s*kar|call\s*karni|call\s*karna|call\s*par\s*baat|call\s*pe\s*baat)/i.test(t)) return true;
-  if (/(?:baat\s*karni|baat\s*karna|baat\s*karni\s*thi|baat\s*karni\s*h|baat\s*ho\s*sakti|baat\s*karni\s*hai|baat\s*karein)/i.test(t)) return true;
-  if (/(?:meeting\s*chahiye|meting\s*chahiye|meeting\s*karni|meting\s*karni|meeting\s*karna|meting\s*karna|meeting\s*karlo|meting\s*karlo|meeting\s*fix|meeting\s*schedule|meeting\s*kar\s*do|meting\s*book)/i.test(t)) return true;
-  if (/(?:slot\s*chahiye|shlot\s*chahiye|slot\s*de\s*do|slot\s*do|slot\s*book|shlot\s*book|slot\s*fix|slot\s*confirm|slot\s*milega|slot\s*de|slot\s*bhej)/i.test(t)) return true;
-  if (/(?:appointment\s*chahiye|apointment\s*chahiye|appointment\s*book|apoitnent\s*book|appointment\s*fix|appointment\s*schedule)/i.test(t)) return true;
-  if (/(?:zoom|google\s*meet|1-on-1|growth\s*audit|audit\s*call|audiot\s*call|voice\s*call|phone\s*call|strategy\s*call)/i.test(t)) return true;
+  if (/(?:call\s*me|call\s*karo|call\s*kijiye|call\s*karlo|call\s*kar|call\s*karni\s*hai|call\s*karna\s*hai|call\s*par\s*baat\s*karni|call\s*pe\s*baat\s*karni)/i.test(t)) return true;
+  if (/(?:baat\s*karni\s*hai|baat\s*karni\s*thi|baat\s*karna\s*chahta|call\s*par\s*samjhao)/i.test(t)) return true;
+  if (/(?:meeting\s*chahiye|meting\s*chahiye|meeting\s*karni\s*hai|meeting\s*fix\s*karo|meeting\s*schedule\s*karo|slot\s*book\s*kardo)/i.test(t)) return true;
+  if (/(?:slot\s*chahiye|slot\s*de\s*do|slot\s*book|slot\s*fix|slot\s*confirm|slot\s*milega)/i.test(t)) return true;
+  if (/(?:appointment\s*chahiye|apointment\s*chahiye|appointment\s*book|apoitnent\s*book|appointment\s*fix)/i.test(t)) return true;
+  if (/(?:zoom\s*call|google\s*meet\s*call|1-on-1\s*strategy\s*call|audit\s*call\s*book)/i.test(t)) return true;
 
-  // 2. Phonetic Combination of Topic + Action (Handles 'meting', 'apoitnent', 'audiot', 'shlot', 'cal', 'buk')
-  const hasTopic = /(?:m(?:ee|e|ea|i)t+i?ng|ap+o[iy]?nt?m?e?n?t?|c[ao]l+|[ao]d[io]*t|s[h]?l?o[te]*|b[a]+t|connect|discuss)/i.test(t);
-  const hasAction = /(?:b[ou]+k|sch?ed|k[a]?r|ch[a]?h[i]?ye|f[i]?x|arrang|m[i]?leg|d[e]?|hoga|kab|time|bat[ao]|chahiye)/i.test(t);
-  if (hasTopic && hasAction) return true;
+  // 2. Strict Topic + Explicit Action combination (Avoid broad matching)
+  const hasStrictTopic = /\b(?:meeting|appointment|zoom\s*call|google\s*meet|calendar\s*slot)\b/i.test(t);
+  const hasStrictAction = /\b(?:book|schedule|fix|chahiye|arrange|dedo|de\s*do)\b/i.test(t);
+  if (hasStrictTopic && hasStrictAction) return true;
 
-  // 3. Short colloquial Hindi
-  if (/(?:kab\s*baat|kab\s*call|call\s*par|phone\s*par|call\s*pe|phone\s*pe|call\s*kab)/i.test(t)) return true;
+  // 3. Short colloquial Hindi direct request for call
+  if (/(?:mukul\s*sir\s*se\s*baat|founder\s*se\s*baat\s*karni|direct\s*call\s*karo)/i.test(t)) return true;
 
   return false;
 }
@@ -379,10 +406,14 @@ export function analyzeCustomerIntent(customer, incomingText) {
   // Detect Category
   if (text.includes('d2c') || text.includes('shopify') || text.includes('ecommerce') || text.includes('product') || text.includes('clothing') || text.includes('skincare')) {
     customer.category = 'D2C & E-Commerce';
+  } else if (text.includes('salon') || text.includes('parlour') || text.includes('parlor') || text.includes('beauty') || text.includes('makeup') || text.includes('spa') || text.includes('hair') || text.includes('glam')) {
+    customer.category = 'Salon & Beauty Parlour';
   } else if (text.includes('restaurant') || text.includes('cafe') || text.includes('food') || text.includes('bakery') || text.includes('dining') || text.includes('table')) {
     customer.category = 'Restaurant & Cafe';
   } else if (text.includes('clinic') || text.includes('hospital') || text.includes('doctor') || text.includes('patient') || text.includes('appointment')) {
     customer.category = 'Clinic & Healthcare';
+  } else if (text.includes('gym') || text.includes('fitness') || text.includes('trainer') || text.includes('workout')) {
+    customer.category = 'Gym & Fitness';
   } else if (text.includes('school') || text.includes('coaching') || text.includes('admission') || text.includes('institute') || text.includes('course')) {
     customer.category = 'Education & Coaching';
   } else if (text.includes('flat') || text.includes('property') || text.includes('real estate') || text.includes('builder') || text.includes('plot')) {
@@ -588,28 +619,30 @@ export async function generateConsultativeSalesReply(customer, incomingText) {
 
   const systemPrompt = `You are Maya, the 24/7 AI Growth Partner for "MSR Next Gen", founded by Mukul Mishra (India's premier Performance Marketing & 24/7 AI WhatsApp Automation Agency).
 You are speaking directly with a business owner on WhatsApp representing Mukul and MSR Next Gen.
-CRITICAL SALES PERSONA & HIGH-CONVERSION PSYCHOLOGY:
-1. NEVER claim to be Mukul Mishra himself. NEVER say "Main Mukul hu" or "Mera naam Mukul hai". Introduce yourself as Maya (AI Growth Assistant at MSR Next Gen).
-2. META ADS INBOUND CONVERSION PSYCHOLOGY:
-   • Leads arriving from Meta Ads (Instagram/FB) seek fast clarity, high trust, and measurable ROI.
-   • Acknowledge their ad curiosity immediately and validate their pain point with deep empathy (e.g., "Ad spend ho raha hai par quality leads nahi aa rahi ya fake inquiries aa rahi hain").
-   • Micro-Diagnose: Ask 1 sharp diagnostic question before pitching (e.g., "Aap abhi Meta ads run kar rahe hain ya fresh campaign start karna chahte hain?").
-   • Share concrete Indian case study proof:
-     - D2C / E-Commerce: Amparo (₹2.4L in 30 days, 3.8x ROAS, 28% fake COD eliminated via automated WhatsApp verification).
-     - Restaurants & Cafes: Nacho G & Grand Bistro (Smart QR menu, automated WhatsApp bookings, 40% repeat diners).
-     - Clinics & Salons: 100% automated appointment bookings on WhatsApp without receptionist payroll.
-     - Gyms & Coaching: High-intent local leads with 60% trial conversion rate.
-3. OUR 3 TRANSPARENT HIGH-ROI PACKAGES:
-   • STARTER (Local Visibility): Setup ₹2,999 + ₹6,999/month (Google Maps SEO, 4 Reels, WhatsApp Review Booster QR, Monthly Report)
-   • GROWTH (Customer Magnet - Most Popular): Setup ₹4,999 + ₹14,999/month (Starter + Meta/Google Local Ads + 8 Reels + 24/7 AI WhatsApp Inquiry & Booking Bot + Birthday/Anniversary Auto-Offers + Win-Back CRM)
-   • PREMIUM (Full Automation VIP): Setup ₹9,999 + ₹24,999/month (Growth + 12 Reels + Professional Video Shoot + Custom Landing Page + AI Calling Agent + Dedicated Manager)
-4. SMART PDF BROCHURE SHARING:
-   • Share ONLY when asked for packages/pricing/brochure/services list: https://msrnextgen.com/MSR_Next_Gen_Restaurant_Growth_Pitch.pdf
-5. CONCISE & CONVERSATIONAL:
-   • 2 to 3 sentences maximum. Warm, consultative Hinglish. Always complete your thoughts.
-   • End with an engaging micro-discovery question (e.g., "Aapka business kahan located hai?", "Aapka monthly ad budget approx kitna rehta hai?").
-6. AUDIT CALL INVITATION:
-   • Guide smoothly towards a Complimentary 15-Minute Business Growth & Ads Audit Call with Founder Mukul Mishra.`;
+
+CRITICAL IDENTITY & HUMAN / AI RULES:
+1. NEVER claim to be Mukul Mishra himself. NEVER say "Main Mukul hu" or "Mera naam Mukul hai".
+2. If asked "Aap AI ho ya insaan?" or similar question about whether you are a bot/human:
+   • Answer truthfully, charmingly, and transparently: "Main Maya hu, MSR Next Gen ki AI Growth Assistant! 😊 Main 24/7 instant replies and assistance ke liye live hu taaki aapka time bache. Agar aap founder Mukul sir (+91 88875 21156) se direct call ya WhatsApp par baat karna chahein, toh bataiye main turant connect karwa dungi!"
+3. NEVER force a meeting or call if the user hasn't asked for one or says "abhi call nahi chahiye" / "pehle rate batao". Always answer their query FIRST directly!
+
+SERVICES & RATE CARD (Directly answer when asked what we do, prices, or low budget):
+• Salons, Parlours, Clinics, Local Businesses:
+  - Google Business Profile (GBP) Local SEO Ranking & Reviews Booster: Setup ₹2,999 (Gets local ladies/customers searching nearby directly to you).
+  - Instagram / Meta Ads for Appointments: Starter from ₹6,999/mo (Targeted ladies in 5-10km radius for bridal/hair/beauty bookings).
+  - 24/7 AI WhatsApp Booking Bot: ₹14,999 one-time (Automates booking, pricing menu, reminders, saving receptionist cost).
+• General / Websites / Ecommerce:
+  - Landing Page / Business Website: ₹7,999 – ₹14,999.
+  - Shopify Launch Pack: ₹19,999.
+  - Complete Performance Marketing + AI Automation: Starter ₹2,999 setup + ₹6,999/mo, Growth ₹14,999/mo.
+
+LOW BUDGET GUIDANCE:
+• If lead says "budget kam hai" or asks price range, reassure them warmly:
+  "Bilkul samajh sakti hu! Hum small aur local businesses ke liye budget-friendly options bhi dete hain jaise Google Maps Local Ranking setup sirf ₹2,999 se start hota hai, aur targeted Meta ads ₹6,999/mo se. Aapka monthly estimated budget kitna hai approx?"
+
+CONCISE & CONVERSATIONAL:
+• Keep responses natural, warm Hinglish, 2 to 3 sentences maximum.
+• End with 1 friendly question to understand their requirement.`;
 
   // 1. OpenRouter (Primary High-Intelligence Router)
   const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -637,15 +670,24 @@ CRITICAL SALES PERSONA & HIGH-CONVERSION PSYCHOLOGY:
   if (pollReply) return pollReply;
 
   // 5. Dynamic Contextual Fallback (Offline emergency only)
+  if (isAiIdentityQuery(incomingText)) {
+    return `Main Maya hu, MSR Next Gen ki AI Growth Assistant! 😊 Main 24/7 instant updates and queries solve karne ke liye hu. Agar aap founder Mukul sir (+91 88875 21156) se baat karna chahein, toh bataiye main connect karwa dungi!`;
+  }
+  if (isMeetingObjection(incomingText) || /(?:kya\s*(?:kya\s*)?services|kya\s*charge|kitna\s*charge|rate|price|cost|budget)/i.test(incomingText)) {
+    if (customer.category === 'Salon & Beauty Parlour' || /salon|beauty|parlour|parlor/i.test(incomingText)) {
+      return `Hum salons ke liye Google Maps Local Ranking (₹2,999 setup), targeted Meta/Instagram ads (ladies bookings ke liye) aur 24/7 WhatsApp automated booking bot provide karte hain. Aapka primary goal new clients lana hai ya booking automate karna?`;
+    }
+    return `Hum businesses ke liye Performance Marketing (Meta/Google Ads), 24/7 AI WhatsApp Chatbots, aur high-converting Websites/Landing pages provide karte hain. Plans ₹2,999 setup se start hote hain! Aap kis specific service ke baare me janna chahte hain?`;
+  }
   if (isMeetingIntent(incomingText)) {
     return `Bilkul! Main Mukul sir ke calendar se next available slot verify karke aapko agle 5-10 minute me confirm karti hu. 😊 Aapke liye morning ka time convenient rahega ya shaam ka?`;
   } else if (historyLen > 4) {
-    return `Aapka requirement samajh aa gaya hai. Isko live discuss karne aur exact ads strategy finalize karne ke liye kya hum Mukul ke sath aaj 10 minute ki quick call schedule karein?`;
+    return `Aapka requirement samajh aa gaya hai. Is par agar aap direct discuss karna chahein toh kya hum Mukul sir ke sath 10 minute ka call plan karein?`;
   } else if (historyLen > 2) {
-    return `Bilkul! Hum aapke specific business goals ke hisab se customized campaign structure design karte hain. Kya aap apna business name aur monthly estimated budget share karenge taaki main ek clear roadmap share kar saku?`;
+    return `Bilkul! Hum aapke business ke according customized growth plan design karte hain. Aapka monthly target ya budget kitna hai approx?`;
   }
 
-  return `Namaste! Main Maya hu, MSR Next Gen se (founded by Mukul Mishra). Hum Meta & Google Ads aur 24/7 AI WhatsApp bots se aapke sales scale karte hain. Aap kis business ke liye marketing ya AI automation explore kar rahe hain?`;
+  return `Namaste! Main Maya hu, MSR Next Gen se. Hum Meta Ads aur 24/7 AI WhatsApp bots se clients aur sales grow karne me help karte hain. Aap kis business ke liye services explore kar rahe hain?`;
 }
 
 // Qualification Gate: Ensures only genuine, qualified leads trigger dossiers to Mukul
@@ -1413,10 +1455,18 @@ export async function handleIncomingSalesMessage(senderJid, text, sock, contactI
   const hasValidBiz = Boolean(customer.businessName && customer.businessName.trim().length >= 2 && !/^(business|business owner)$/i.test(customer.businessName.trim()));
 
   const meetingIntent = isMeetingIntent(text);
+  const meetingObjection = isMeetingObjection(text);
+  const isAiQuery = isAiIdentityQuery(text);
+
+  // If user objects to meeting or asks identity/services/pricing, reset collecting_info state!
+  if (customer.meetingState === 'collecting_info' && (meetingObjection || isAiQuery || /(?:services|charge|kitna|price|cost|budget|kya kar)/i.test(text))) {
+    customer.meetingState = 'none';
+  }
+
   let reply = '';
 
   // SCENARIO 1: Client was in 'collecting_info' (we asked for Name & Business)
-  if (customer.meetingState === 'collecting_info') {
+  if (customer.meetingState === 'collecting_info' && !meetingObjection) {
     if (parsedName || parsedBiz || hasValidName || hasValidBiz) {
       customer.meetingState = 'pending_owner_approval';
       customer.stage = 'meeting_requested';
@@ -1434,7 +1484,7 @@ Main Mukul sir (+91 88875 21156) se next available calendar slot check karke agl
     }
   }
   // SCENARIO 2: Client expresses meeting intent for the first time
-  else if (meetingIntent) {
+  else if (meetingIntent && !meetingObjection) {
     if (!hasValidName || !hasValidBiz) {
       // Must collect Name & Business Name BEFORE alerting Mukul
       customer.meetingState = 'collecting_info';
@@ -1456,11 +1506,24 @@ Main Mukul sir (+91 88875 21156) se next available calendar slot check karke agl
       reply = `Bilkul ${customer.name} ji! ${customer.businessName} ke liye Mukul sir ke calendar se available slot check karke main agle 5-10 minute me aapko WhatsApp par confirm karti hu. 😊 Aapke liye morning ka time convenient rahega ya shaam ka?`;
     }
   }
-  // SCENARIO 3: Consultative Sales Journey (Meta Ads / Organic Lead)
+  // SCENARIO 3: Consultative Sales Journey (Meta Ads / Organic Lead / Questions / Pricing)
   else {
     reply = await generateConsultativeSalesReply(customer, text);
     if (isQualifiedForDossier(customer)) {
       await sendHotLeadDossierToOwner(customer, sock);
+    }
+  }
+
+  // Loop Prevention: Never send the exact same message twice consecutively!
+  const lastAiMessage = [...(customer.history || [])].reverse().find((m) => m.sender === 'ai');
+  if (lastAiMessage && lastAiMessage.text.trim() === reply.trim()) {
+    // If about to send a duplicate, dynamically alter or resolve with direct consultation
+    if (isAiQuery) {
+      reply = `Main Maya hu, MSR Next Gen ki AI Assistant! Main 24/7 instant queries solve karti hu taaki aapko wait na karna pade. Mukul sir se baat karni ho toh bataiye, main connect karwa dungi! 😊`;
+    } else if (customer.category === 'Salon & Beauty Parlour' || /salon|beauty|glam/i.test(text)) {
+      reply = `Salons ke liye hum local Google Maps Ranking (₹2,999 setup) aur ladies-targeted Instagram ads chalate hain jisse daily bookings aayein. Aapka salon kis location par hai?`;
+    } else {
+      reply = `Main samajh rahi hu! Aapke specific business goals ke according hum custom packages offer karte hain jo ₹2,999 se shuru hote hain. Aapki sabse badi requirement abhi kya hai?`;
     }
   }
 
