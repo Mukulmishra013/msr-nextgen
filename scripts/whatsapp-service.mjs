@@ -1116,6 +1116,9 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
+    return;
+  }
+
   // GET /restaurant/settings - Dynamic routing numbers & alert settings
   if (req.method === 'GET' && url.pathname === '/restaurant/settings') {
     try {
