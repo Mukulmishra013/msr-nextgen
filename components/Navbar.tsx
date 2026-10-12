@@ -74,9 +74,9 @@ export default function Navbar() {
           <a href="/#services" className="hover:text-brand-600 transition-colors">
             Services
           </a>
-          <a href="/#rate-card" className="hover:text-brand-600 transition-colors">
-            Rate Card
-          </a>
+          <Link href="/pricing" className="hover:text-brand-600 transition-colors">
+            Rate Card & Pricing
+          </Link>
           <a href="/#brands" className="hover:text-brand-600 transition-colors">
             Brands We Manage
           </a>
@@ -218,14 +218,14 @@ export default function Navbar() {
               <span className="text-xs text-slate-400 font-normal">Top 4 Packages</span>
             </a>
 
-            <a
-              href="/#rate-card"
+            <Link
+              href="/pricing"
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-slate-800 hover:text-brand-600 hover:bg-slate-50 font-semibold text-sm transition-colors"
             >
-              <span>Service Rate Card</span>
+              <span>Service Rate Card & Pricing</span>
               <span className="text-xs text-brand-600 font-semibold">11 Categories (₹)</span>
-            </a>
+            </Link>
 
             <a
               href="/#brands"
