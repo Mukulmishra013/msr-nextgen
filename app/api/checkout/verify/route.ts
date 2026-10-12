@@ -67,8 +67,15 @@ export async function POST(req: NextRequest) {
     const keySecret = process.env.RAZORPAY_KEY_SECRET || 'z9J3uLrQkl86aMdlIMoRO1aq';
     const cleanPhone = String(clientPhone || '').replace(/\D/g, '');
 
-    // Cryptographic signature check
-    if (signature && keySecret) {
+    // Strict Cryptographic signature check (Guards against forged requests)
+    if (!signature) {
+      return NextResponse.json(
+        { success: false, error: 'Payment signature missing. Transaction cannot be validated.' },
+        { status: 400 }
+      );
+    }
+
+    if (keySecret) {
       const expectedSignature = crypto
         .createHmac('sha256', keySecret)
         .update(`${orderId}|${paymentId}`)

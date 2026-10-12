@@ -554,9 +554,24 @@ Aap apne isi WhatsApp se Maya ko koi bhi message (jaise "meeting book karni hai"
           return;
         }
 
+        // Anti-Spam Sliding-Window Rate Limiter (Max 6 messages per minute per contact)
         const now = Date.now();
+        if (!isMukulTesting) {
+          if (!globalThis.inboundMsgRateMap) {
+            globalThis.inboundMsgRateMap = new Map();
+          }
+          const userHistory = globalThis.inboundMsgRateMap.get(senderClean) || [];
+          const recentMsgs = userHistory.filter((t) => now - t < 60000);
+          if (recentMsgs.length >= 6) {
+            console.warn(`[Anti-Spam Alert] Rate limit triggered for ${senderClean} (${recentMsgs.length} msgs/min)`);
+            return; // Silently drop rapid spam flood to protect socket from ban
+          }
+          recentMsgs.push(now);
+          globalThis.inboundMsgRateMap.set(senderClean, recentMsgs);
+        }
+
         const lastReplied = lastAdminReplyPerUser.get(senderJid) || 0;
-        if (now - lastReplied < 3000) return;
+        if (now - lastReplied < 4500) return; // Strict 4.5s pacing
         lastAdminReplyPerUser.set(senderJid, now);
 
         try {
@@ -979,9 +994,9 @@ const server = http.createServer(async (req, res) => {
         if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
         const jid = `${cleanPhone}@s.whatsapp.net`;
 
-        const sent = await adminSock.sendMessage(jid, { text: message });
+        const sent = await enqueueAdminMessage(adminSock, jid, { text: message });
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, messageId: sent.key.id, to: cleanPhone }));
+        res.end(JSON.stringify({ success: true, messageId: sent?.key?.id || 'queued', to: cleanPhone }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
