@@ -50,20 +50,46 @@ export default function CaseStudy() {
             
             {/* Story Column */}
             <div className="flex-1 space-y-4">
-              <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-brand-600" />
-                <span>The Challenge & Strategy</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+                  <span>D2C E-Commerce Case Study</span>
+                </span>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                  ₹2.4L+ In 30 Days • 3.8x ROAS
+                </span>
               </div>
+
               <p className="text-base sm:text-lg text-slate-700 leading-relaxed">
                 {CASE_STUDY_AMPARO.description}
               </p>
 
+              {/* Before vs After Contrast */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200/80">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-rose-800 mb-1">
+                    ❌ Before MSR Next Gen
+                  </div>
+                  <p className="text-xs text-rose-900/80 leading-relaxed">
+                    Facebook Boost buttons par ad spend waste, fake COD addresses, aur delayed manual WhatsApp replies se 35%+ order drop-off.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 mb-1">
+                    ✅ After MSR Next Gen
+                  </div>
+                  <p className="text-xs text-emerald-900/80 leading-relaxed">
+                    Regional UGC video hooks + 24/7 AI WhatsApp bot ne 3 second me order verify kiya, RTO 28% kam hua aur blended ROAS 3.8x cross hua.
+                  </p>
+                </div>
+              </div>
+
               {/* Execution Highlights */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-2">
                 {CASE_STUDY_AMPARO.resultsHighlights.map((highlight, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
-                    <span className="text-sm sm:text-base text-slate-600 font-medium">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="text-sm text-slate-700 font-medium">
                       {highlight}
                     </span>
                   </div>
@@ -74,20 +100,20 @@ export default function CaseStudy() {
             {/* Quick Action Box */}
             <div className="w-full lg:w-72 bg-surface-50 p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase">Strategy Blueprint</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Strategy Blueprint</span>
                 <h4 className="font-extrabold text-slate-900 text-base mt-1 mb-2">
                   Want the exact playbook for your business?
                 </h4>
-                <p className="text-xs text-slate-600 mb-4">
-                  We customize the ads creative hooks and WhatsApp automation specifically for your category.
+                <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+                  Hum aapke business niche aur shehar ke hisab se ad hooks aur WhatsApp bot blueprint 15 minute me design karte hain.
                 </p>
               </div>
               <a
-                href={getWhatsAppUrl('Hi MSR Next Gen, I saw the Amparo case study and want a custom growth plan for my business.')}
+                href={getWhatsAppUrl('Hi Mukul sir, I saw the Amparo case study (3.8x ROAS) and want a custom growth plan for my business.')}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsAppCaseClick}
-                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-xs active:scale-95 transition-all"
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-sm min-h-[48px] py-3.5 px-4 rounded-xl shadow-md transition-all"
               >
                 <MessageCircle className="w-4 h-4 fill-white" />
                 <span>Discuss On WhatsApp</span>

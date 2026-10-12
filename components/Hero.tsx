@@ -100,10 +100,21 @@ export default function Hero() {
             </a>
           </div>
 
-          {/* Trust Proof Line Under CTA */}
-          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm tv:text-base font-semibold text-slate-500">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Trusted by growing D2C & local Indian brands • Full social media management</span>
+          {/* Trust Proof Badges Under CTA */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm font-semibold text-slate-600 pt-1">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Proven 3.8x Blended ROAS</span>
+            </span>
+            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span>24/7 AI WhatsApp Engine (&lt; 3s Reply)</span>
+            </span>
+            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span>🇮🇳 Built for Indian Retail, Clinics & D2C</span>
+            </span>
           </div>
         </div>
 
