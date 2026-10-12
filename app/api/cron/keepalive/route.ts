@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   let isAlive = false;
 
   try {
-    const res = await fetch(`${targetUrl}/health`, {
+    const res = await fetch(`${targetUrl}/status`, {
       method: 'GET',
       headers: { 'User-Agent': 'MSR-KeepAlive-Ping/1.0' },
       signal: AbortSignal.timeout(10000),
