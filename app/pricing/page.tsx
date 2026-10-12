@@ -536,10 +536,10 @@ export default function PricingPage() {
 
                     <button
                       type="button"
-                      onClick={() => handleBuyNow('whatsapp-starter')}
+                      onClick={() => handleWhatsAppClick(srv.title, `Hi Mukul sir, I want a custom quote and scope proposal for: ${srv.title} (${srv.priceRange}). Let us discuss details.`)}
                       className="inline-flex items-center justify-center gap-1 bg-surface-100 hover:bg-surface-200 text-slate-800 font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer border border-surface-300"
                     >
-                      <span>Request Quote</span>
+                      <span>Request Custom Scope</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

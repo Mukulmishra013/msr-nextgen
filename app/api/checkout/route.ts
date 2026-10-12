@@ -2,61 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { supabaseAdmin, OrderDbRecord } from '@/lib/supabase';
 
-// Approved Catalogue & Immutable Server Prices (Frontend price is NEVER trusted)
-const APPROVED_PACKAGES: Record<string, { name: string; amount: number; description: string }> = {
-  // Flagship Packages
-  'business-website': {
-    name: 'Business Website (Website Launch)',
-    amount: 14999, // ₹14,999
-    description: 'Professional responsive business website, contact forms, essential on-page SEO, analytics',
-  },
-  'whatsapp-starter': {
-    name: 'WhatsApp AI Starter (Automation)',
-    amount: 14999, // ₹14,999
-    description: 'Basic WhatsApp automation, FAQs, lead capture and defined setup/testing scope',
-  },
-  'shopify-launch': {
-    name: 'Shopify Launch Pack (E-Commerce)',
-    amount: 19999, // ₹19,999
-    description: 'Store setup, product catalogue configuration, essential checkout setup & shipping',
-  },
-  'gbp-growth': {
-    name: 'GBP Audit & Optimization (Local Business Growth)',
-    amount: 2999, // ₹2,999 (Special discounted price, down from ₹4,999)
-    description: 'Google Business Profile audit, optimization recommendations and agreed listing improvements',
-  },
-  // Legacy / Retainer Packages
-  starter: {
-    name: 'Starter (Visibility Package)',
-    amount: 6999, // ₹6,999
-    description: 'Google Maps SEO + 4 Reels + Reviews QR & WhatsApp + Monthly Report',
-  },
-  growth: {
-    name: 'Growth (Customer Magnet Package)',
-    amount: 14999, // ₹14,999
-    description: 'Starter + Local Meta/Google Ads + 8 Reels + 24/7 AI WhatsApp Bot + Loyalty System',
-  },
-  premium: {
-    name: 'Premium (Full Automation VIP)',
-    amount: 24999, // ₹24,999
-    description: 'Growth + 12 Reels + Shoot + Custom Booking/Landing Page + AI Calling + Dedicated Manager',
-  },
-};
+import { getPackageById } from '@/lib/catalogue';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { packageId, clientPhone, clientName, clientEmail, businessCategory } = body;
 
-    if (!packageId || !APPROVED_PACKAGES[packageId]) {
-      return NextResponse.json({ error: 'Invalid or unapproved package selected' }, { status: 400 });
+    const pkg = getPackageById(packageId);
+    if (!pkg || pkg.isCustom || pkg.amount <= 0) {
+      return NextResponse.json({ error: 'This service requires a custom scope proposal. Please request a quote.' }, { status: 400 });
     }
 
     if (!clientPhone || String(clientPhone).replace(/\D/g, '').length < 10) {
       return NextResponse.json({ error: 'Valid 10-digit mobile number is required' }, { status: 400 });
     }
 
-    const pkg = APPROVED_PACKAGES[packageId];
     const amountInPaise = pkg.amount * 100;
 
     const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tm87FZ58zafiUA';

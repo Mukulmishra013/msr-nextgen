@@ -182,7 +182,7 @@ export function getSmartAssistantAnswer(
     q.includes('fees') ||
     q.includes('rate')
   ) {
-    return 'Hamare Meta/Google Ads & 24/7 AI WhatsApp bot management packages ₹15,000/month se start hote hain.\n\nIsme included hai:\n✓ High-converting ad creative design & video reel scripting\n✓ Laser-targeted audience setup & daily campaign optimization\n✓ 24/7 AI WhatsApp bot automation (instant reply & booking)\n✓ Zero setup headache — 24 ghante me live!\n\nKya aap apne business ke liye ek free 15-minute growth audit book karna chahenge?';
+    return 'Hamari pricing transparent aur result-driven hai:\n\n• 📍 Google Maps Local SEO & Reviews Booster: ₹2,999 setup\n• 🎯 Targeted Meta & Google Ads: ₹6,999/month se\n• 🤖 24/7 AI WhatsApp Chatbot Starter: ₹14,999 (one-time setup)\n• 🌐 High-Speed Business Website: ₹14,999\n\nAap website par hamara poora Service Rate Card dekh sakte hain ya Mukul sir se free 15-minute audit call schedule kar sakte hain!';
   }
 
   // 8. WhatsApp AI Bot

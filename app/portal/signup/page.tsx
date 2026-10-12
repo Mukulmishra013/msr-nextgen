@@ -22,7 +22,7 @@ export default function ClientSignupPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [category, setCategory] = useState('Gym & Fitness Center');
+  const [category, setCategory] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +34,11 @@ export default function ClientSignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!category) {
+      setError('Kripya apna business category select karein.');
+      return;
+    }
 
     if (password.length < 6) {
       setError('Password kam se kam 6 characters ka hona chahiye.');
@@ -139,10 +144,12 @@ export default function ClientSignupPage() {
                 Business Category *
               </label>
               <select
+                required
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
+                <option value="" disabled>-- Select Your Business Category --</option>
                 <option value="Gym & Fitness Center">Gym & Fitness Center</option>
                 <option value="Salon, Spa & Beauty Clinic">Salon, Spa & Beauty Clinic</option>
                 <option value="Clinic & Healthcare / Doctor">Clinic & Healthcare / Doctor</option>

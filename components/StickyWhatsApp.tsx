@@ -8,6 +8,19 @@ import { MessageCircle } from 'lucide-react';
 
 export default function StickyWhatsApp() {
   const { showToast } = useToast();
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkModalState = () => {
+      setIsModalOpen(document.body.classList.contains('checkout-modal-open'));
+    };
+
+    const observer = new MutationObserver(checkModalState);
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    checkModalState();
+
+    return () => observer.disconnect();
+  }, []);
 
   const whatsappHref = getWhatsAppUrl('Hi MSR Next Gen, I would like to chat about growing my business.');
 
@@ -28,6 +41,8 @@ export default function StickyWhatsApp() {
       }
     } catch {}
   };
+
+  if (isModalOpen) return null;
 
   return (
     <aside

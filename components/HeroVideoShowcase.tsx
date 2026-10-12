@@ -147,7 +147,7 @@ export default function HeroVideoShowcase() {
               loop
               muted
               playsInline
-              preload="auto"
+              preload="metadata"
               onLoadedData={() => setIsLoaded(true)}
               className="w-full h-full object-cover select-none"
             />

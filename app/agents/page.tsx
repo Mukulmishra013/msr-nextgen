@@ -1061,15 +1061,15 @@ export default function AgentsDirectoryPage() {
 
                 <div className="p-3 bg-surface-50 rounded-2xl border border-slate-200 text-left text-xs text-slate-600">
                   <span className="font-bold text-slate-800 block mb-1">
-                    💡 Running local Baileys QR Worker?
+                    💡 Connecting to Instant AI Sandbox?
                   </span>
                   <span>
-                    Agar aapka background worker live hai, to{' '}
+                    Agar aap live sandbox test karna chahte hain, to{' '}
                     <button
                       onClick={handleStartSandbox}
                       className="text-emerald-700 font-bold underline hover:text-emerald-800"
                     >
-                      Click here to refresh QR code
+                      Click here to refresh connection QR
                     </button>
                     .
                   </span>

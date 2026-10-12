@@ -91,9 +91,19 @@ export default function ClientLoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Password
+                </label>
+                <a
+                  href="https://wa.me/918887521156?text=Hi%20Mukul%20sir%2C%20I%20need%20help%20resetting%20my%20MSR%20Portal%20password."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-brand-400 hover:text-brand-300 font-medium hover:underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                 <input

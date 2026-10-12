@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, ShieldCheck, CheckCircle2, Loader2, Sparkles, CreditCard, Lock, Zap } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, Loader2, Lock } from 'lucide-react';
+import { CHECKOUT_OFFICIAL_PACKAGES, getPackageById } from '@/lib/catalogue';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -10,86 +11,15 @@ interface CheckoutModalProps {
   defaultPackageId?: string;
 }
 
-const PACKAGES = [
-  {
-    id: 'business-website',
-    name: 'Business Website',
-    category: 'Website Launch',
-    amount: 14999,
-    setupFee: 0,
-    highlights: ['Professional responsive website', 'Contact forms & WhatsApp chat', 'Essential On-Page SEO & analytics', '100% mobile-optimized'],
-    popular: false,
-    billingNote: 'one-time',
-  },
-  {
-    id: 'whatsapp-starter',
-    name: 'WhatsApp AI Starter',
-    category: 'Automation',
-    amount: 14999,
-    setupFee: 0,
-    highlights: ['24/7 AI chatbot engine (3s reply)', 'FAQs & lead capture automation', 'Defined setup & testing scope', 'Instant hot lead founder alerts'],
-    popular: true,
-    billingNote: 'setup fee',
-  },
-  {
-    id: 'shopify-launch',
-    name: 'Shopify Launch Pack',
-    category: 'E-Commerce',
-    amount: 19999,
-    setupFee: 0,
-    highlights: ['Complete Shopify store setup', 'Product catalogue & collections', 'Razorpay & shipping integration', 'Conversion-optimized cart'],
-    popular: false,
-    billingNote: 'one-time',
-  },
-  {
-    id: 'gbp-growth',
-    name: 'GBP Audit & Optimization',
-    category: 'Local Business Growth',
-    amount: 2999,
-    originalAmount: 4999,
-    setupFee: 0,
-    highlights: ['Google Business Profile audit', 'Local SEO & keyword optimization', 'Geo-tagged photos & listing boost', 'Review booster QR strategy'],
-    popular: false,
-    billingNote: 'one-time',
-  },
-  {
-    id: 'starter',
-    name: 'Starter (Visibility)',
-    category: 'Monthly Retainer',
-    amount: 6999,
-    setupFee: 2999,
-    highlights: ['Google Maps SEO + 4 Reels', 'Reviews Booster QR + WhatsApp', 'Monthly Performance Report'],
-    popular: false,
-    billingNote: '/mo',
-  },
-  {
-    id: 'growth',
-    name: 'Growth (Customer Magnet)',
-    category: 'Monthly Retainer',
-    amount: 14999,
-    setupFee: 4999,
-    highlights: ['Local Meta & Google Ads', '8 High-Impact Reels', '24/7 AI WhatsApp Inquiry Bot', 'Loyalty & Win-Back Offers'],
-    popular: false,
-    billingNote: '/mo',
-  },
-  {
-    id: 'premium',
-    name: 'Premium (Full VIP)',
-    category: 'Monthly Retainer',
-    amount: 24999,
-    setupFee: 9999,
-    highlights: ['Growth + 12 Reels + Shoot', 'Custom Web / Booking Page', 'AI Calling Agent + Dedicated Manager'],
-    popular: false,
-    billingNote: '/mo',
-  },
-];
+// Fixed-scope packages available for instant gateway checkout
+const CHECKOUT_PACKAGES = CHECKOUT_OFFICIAL_PACKAGES.filter((p) => !p.isCustom);
 
 export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'whatsapp-starter' }: CheckoutModalProps) {
   const router = useRouter();
   const [selectedPkg, setSelectedPkg] = useState<string>(defaultPackageId);
   const [clientPhone, setClientPhone] = useState('');
   const [clientName, setClientName] = useState('');
-  const [businessCategory, setBusinessCategory] = useState('Gym & Fitness');
+  const [businessCategory, setBusinessCategory] = useState('Gym & Fitness Center');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -99,9 +29,27 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
     }
   }, [defaultPackageId, isOpen]);
 
+  // Accessibility: Close on Escape key & manage body scroll / widget visibility
+  useEffect(() => {
+    if (!isOpen) return;
+
+    document.body.classList.add('checkout-modal-open');
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.classList.remove('checkout-modal-open');
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const activePackage = PACKAGES.find((p) => p.id === selectedPkg) || PACKAGES[0];
+  const activePackage = getPackageById(selectedPkg) || CHECKOUT_PACKAGES[0];
 
   const handlePayNow = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,7 +163,12 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="checkout-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in"
+    >
       <div className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
@@ -223,10 +176,13 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/70 px-2.5 py-1 rounded-full border border-emerald-800">
               Instant Service Activation
             </span>
-            <h2 className="text-xl sm:text-2xl font-extrabold mt-2">Choose Growth Package</h2>
+            <h2 id="checkout-modal-title" className="text-xl sm:text-2xl font-extrabold mt-2">
+              Choose Growth Package
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close checkout"
             className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -247,7 +203,7 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
               Select Package
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
-              {PACKAGES.map((pkg) => {
+              {CHECKOUT_PACKAGES.map((pkg) => {
                 const isSelected = selectedPkg === pkg.id;
                 return (
                   <button
@@ -272,7 +228,9 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
                         <span className="text-xs text-slate-400 line-through font-semibold">₹{pkg.originalAmount.toLocaleString('en-IN')}</span>
                       )}
                       <span className="text-sm font-extrabold text-brand-700">₹{pkg.amount.toLocaleString('en-IN')}</span>
-                      <span className="text-[10px] text-slate-500 font-normal">({pkg.billingNote})</span>
+                      <span className="text-[10px] text-slate-500 font-normal">
+                        ({pkg.billingCycle === 'monthly' ? '/mo' : pkg.billingCycle === 'setup' ? 'setup' : 'one-time'})
+                      </span>
                     </div>
                   </button>
                 );
@@ -335,18 +293,18 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
                 onChange={(e) => setBusinessCategory(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 font-medium"
               >
-                <option value="Gym & Fitness">Gym & Fitness Center</option>
+                <option value="Gym & Fitness Center">Gym & Fitness Center</option>
                 <option value="Salon & Spa">Salon & Spa</option>
-                <option value="Clinic & Healthcare">Clinic & Hospital</option>
+                <option value="Clinic & Hospital">Clinic & Hospital</option>
                 <option value="Restaurant & Cafe">Restaurant & Cafe</option>
-                <option value="Coaching & Education">Coaching & Institute</option>
+                <option value="Coaching & Institute">Coaching & Institute</option>
                 <option value="Real Estate">Real Estate</option>
-                <option value="D2C & Retail">D2C Brand / Retail Store</option>
+                <option value="D2C Brand / Retail Store">D2C Brand / Retail Store</option>
               </select>
             </div>
 
             {/* Price Summary & Submit */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] text-slate-500 font-medium">Total Payable</div>
                 <div className="text-xl font-black text-slate-900">
@@ -357,7 +315,7 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all disabled:opacity-50 text-sm"
+                className="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-5 sm:px-6 py-3 rounded-xl shadow-md transition-all disabled:opacity-50 text-sm shrink-0"
               >
                 {loading ? (
                   <>
@@ -378,7 +336,9 @@ export default function CheckoutModal({ isOpen, onClose, defaultPackageId = 'wha
         {/* Footer Guarantee */}
         <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-500">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Encrypted Gateway Checkout • No Commitment • Monthly Renewal</span>
+          <span>
+            Encrypted Gateway Checkout • {activePackage.billingCycle === 'monthly' ? 'Monthly Renewal • No Lock-in' : 'One-time Payment • Zero Hidden Fees'}
+          </span>
         </div>
       </div>
     </div>

@@ -66,29 +66,34 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
               <li>
-                <a href="#services" className="hover:text-white transition-colors">
+                <a href="/#services" className="hover:text-white transition-colors">
                   Flagship Services
                 </a>
               </li>
               <li>
-                <a href="#brands" className="hover:text-white transition-colors">
+                <a href="/#brands" className="hover:text-white transition-colors">
                   Brands We Manage
                 </a>
               </li>
               <li>
-                <a href="#case-study" className="hover:text-white transition-colors">
+                <a href="/#case-study" className="hover:text-white transition-colors">
                   Amparo Case Study
                 </a>
               </li>
               <li>
-                <a href="#ai-demo" className="hover:text-white transition-colors">
+                <a href="/#ai-demo" className="hover:text-white transition-colors">
                   AI WhatsApp Demo
                 </a>
               </li>
               <li>
-                <a href="#about" className="hover:text-white transition-colors">
+                <a href="/#about" className="hover:text-white transition-colors">
                   About the Founder
                 </a>
+              </li>
+              <li>
+                <Link href="/pricing" className="hover:text-white transition-colors text-brand-400">
+                  Pricing & Rate Card →
+                </Link>
               </li>
             </ul>
           </div>
@@ -143,9 +148,19 @@ export default function Footer() {
         {/* Bottom Bar: Copyright & Compliance */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>© {currentYear} MSR Next Gen. All rights reserved.</p>
-          <p>
-            Designed & engineered for maximum mobile speed, clarity, and real business results.
-          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href="/terms" className="hover:text-slate-300 transition-colors">
+              Terms of Service
+            </Link>
+            <span className="text-slate-700">•</span>
+            <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-slate-700">•</span>
+            <Link href="/refund-policy" className="hover:text-slate-300 transition-colors">
+              Refund & Cancellation
+            </Link>
+          </div>
         </div>
 
       </div>
