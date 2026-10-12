@@ -420,7 +420,7 @@ async function startAdminWhatsAppSocket() {
         const isOwner = isOwnerNumber(senderClean) || isOwnerNumber(resolvedPhone);
         const memory = loadAgentMemory();
 
-        // OWNER COMMAND: !slot <Client Phone> <Date & Time>
+        // OWNER COMMAND: Natural Language Slot Booking OR !slot <Client Phone> <Date & Time>
         if (isOwner && trimmedText.startsWith('!slot')) {
           const slotMatch = trimmedText.match(/^!slot\s+(\+?\d[\d\s-]{8,15})\s+(.+)$/i);
           if (!slotMatch) {
@@ -435,6 +435,20 @@ async function startAdminWhatsAppSocket() {
           const result = await confirmClientMeetingSlot(targetRawPhone, slotDetails, adminSock);
           await enqueueAdminMessage(adminSock, senderJid, { text: result.message });
           return;
+        }
+
+        // CONVERSATIONAL SLOT REPLY: If Mukul simply texts back a time (e.g. "Kal shaam 5 baje", "Aaj 8 pm", "Kal 4:00 PM")
+        if (isOwner && !trimmedText.startsWith('!') && globalThis.lastPendingMeetingClientPhone) {
+          const isTimeLike = /(?:kal|aaj|parso|today|tomorrow|baje|pm|am|shaam|dopahar|raat|morning|evening|afternoon|\d{1,2}[:.]\d{2})/i.test(trimmedText);
+          if (isTimeLike) {
+            const targetPhone = globalThis.lastPendingMeetingClientPhone;
+            const result = await confirmClientMeetingSlot(targetPhone, trimmedText, adminSock);
+            await enqueueAdminMessage(adminSock, senderJid, {
+              text: `👍 *Samajh gayi Mukul sir! Aapke kahe anusaar client ko confirm kar diya:* \n\n${result.message}`,
+            });
+            globalThis.lastPendingMeetingClientPhone = null; // Cleared once confirmed
+            return;
+          }
         }
 
         // OWNER COMMAND: !delay <Client Phone> <Minutes> (or +10 <Phone>, +20 <Phone>)

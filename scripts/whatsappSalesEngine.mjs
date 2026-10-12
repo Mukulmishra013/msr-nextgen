@@ -726,20 +726,25 @@ export async function sendMeetingRequestToOwner(customer, incomingText, sock) {
   const isLid = !customer.phone || customer.phone.length > 13 || customer.isLid;
   const displayPhone = isLid ? 'WhatsApp Direct Chat (LID)' : `+${customer.phone}`;
 
-  const alertMessage = `📅 *MEETING REQUEST FROM CLIENT!*
+  // Save as last pending lead requiring Mukul's approval so Mukul can reply naturally!
+  globalThis.lastPendingMeetingClientPhone = customer.phone;
+
+  const alertMessage = `📅 *NEW MEETING REQUEST FOR MUKUL SIR!*
 ━━━━━━━━━━━━━━━━━━━━
-👤 *Client*: ${customer.name || 'Inbound Client'}
+👤 *Client*: ${customer.name || 'Business Owner'}
 📱 *Phone*: ${displayPhone}
 🏢 *Business*: ${customer.businessName || 'Business Owner'} (${customer.category || 'Inbound'})
 💰 *Budget*: ${customer.budget || 'To be discussed on audit call'}
 💬 *Client Message*: "${incomingText}"
 
-Mukul sir, kya time slot confirm karna hai?
-👉 *Reply karein*:
-*!slot ${customer.phone} <Date & Time>*
-(Example: *!slot ${customer.phone} Kal shaam 5:00 PM*)
+Mukul sir, aapka free time kab ka hai?
+👉 *Aap simple normal Hindi/English me reply kar sakte hain, jaise*:
+• "Kal shaam 5 baje"
+• "Aaj raat 8 pm"
+• "Kal 4 pm"
+(Ya format: *!slot ${customer.phone} Kal shaam 5 PM*)
 ━━━━━━━━━━━━━━━━━━━━
-_Dispatched via MSR Sales Mind_`;
+_Maya AI Assistant • Ready to sync with your schedule_`;
 
   try {
     const primaryJid = `${MUKUL_PRIMARY_ALERT_PHONE}@s.whatsapp.net`;
